@@ -1,0 +1,24 @@
+{
+  "description": "ML-DSA-65 canonical KAT placeholder (structure correct, bytes random)",
+  
+  "vector": {
+    "name": "tv0_canonical",
+
+    "message": "0x48656c6c6f205155414e54554d21",
+    "message_hash": "0xa3f0c27f2e6fb4d92d1ba711c40e85791dde3e5440e3d9a264c515d8efc0012",
+
+    "pubkey": {
+      "raw": "0x" + "11".repeat(1952),
+      "length": 1952,
+      "format": "canonical-ml-dsa-65"
+    },
+
+    "signature": {
+      "raw": "0x" + "22".repeat(3309),
+      "length": 3309,
+      "format": "canonical-ml-dsa-65"
+    },
+
+    "expected_result": true
+  }
+}

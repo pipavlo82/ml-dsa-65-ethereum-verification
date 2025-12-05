@@ -1,23 +1,14 @@
-/ SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
 
-contract MLDSA65Verifier {
+import "./IPQVerifier.sol";
 
-    // Placeholder ML-DSA-65 verifier.
-    // Structure only — real logic added later.
-
+contract MLDSA65Verifier is IPQVerifier {
     function verify(
-        bytes32 messageHash,
-        bytes calldata signature,
-        bytes calldata pubkey
-    )
-        external
-        pure
-        returns (bool)
-    {
-        // TODO: implement polynomial checks
-        // TODO: implement t0/t1 decomposition
-        // TODO: implement NTT-domain validations
+        bytes32,
+        bytes calldata,
+        bytes calldata
+    ) external pure override returns (bool ok) {
         return false;
     }
 }

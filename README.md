@@ -54,7 +54,55 @@ This parser provides the foundation for cryptographic verification.
 - [ ] Signature validity pipeline
 
 **Target:** 7–9M gas for complete ML-DSA-65 verification
+📘 Research Notes
 
+This repository includes a dedicated research section documenting low-level arithmetic experiments and gas-analysis relevant to ML-DSA-65 verification on Ethereum.
+
+🔬 Current Research Highlight
+
+Montgomery Arithmetic for ML-DSA-65 — correctness, benchmarks, and gas impact
+
+This study includes:
+
+
+
+
+
+Full Montgomery implementation for the ML-DSA-65 field
+
+
+
+Proof of correctness against mulmod
+
+
+
+200+ correctness test cases
+
+
+
+Polynomial-benchmarks (256-coeff workloads)
+
+
+
+Gas comparison: Montgomery vs native mulmod
+
+
+
+Practical conclusions for NTT design in EVM
+
+
+
+Why Montgomery is not gas-efficient for small moduli (≈23-bit q)
+
+
+
+Recommended optimization strategy for full ML-DSA-65 verifier
+
+📄 Detailed Report
+
+View the full research document here:
+
+➡ research/README_MONTGOMERY.md
 ---
 
 ## Repository Structure

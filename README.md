@@ -237,14 +237,14 @@ Post-quantum signature verification enables:
 ## References
 
 - **FIPS 204:** [ML-DSA Standard](https://csrc.nist.gov/pubs/fips/204/final)
-- **EIP-8051:** [ML-DSA verification (draft)](link)
-- **EIP-8052:** [Falcon precompile (draft)](link)
+- **EIP-8051:** [ML-DSA verification (draft)](https://ethereum-magicians.org/t/eip-8051-ml-dsa-verification/18752)
+- **EIP-8052:** [Falcon precompile (draft)](https://ethereum-magicians.org/t/eip-8052-precompile-for-falcon-support/18740)
 - **Related work:**
   - [QuantumAccount](https://github.com/Cointrol-Limited/QuantumAccount) (Falcon-1024)
   - [ETHDILITHIUM](https://github.com/ZKNoxHQ/ETHDILITHIUM)
   - [ETHFALCON](https://github.com/ZKNoxHQ/ETHFALCON)
-
----
+-
+  
 
 ## License
 

@@ -83,6 +83,11 @@ The study covers:
 - ✅ Practical implications for NTT design  
 - ⚠️ Why Montgomery is **not gas-efficient** for small modulus q≈2²³  
 - ✅ Recommended optimization strategy for the real ML-DSA verifier  
+2. **Barrett reduction (experimental, rejected)**  
+   - Multiple Barrett variants evaluated (64-bit style and 256-bit style)  
+   - No clear gas advantage over native `mulmod` for `q ≈ 2²³`  
+   - Added complexity and correctness risks for 256-bit inputs  
+   - Conclusion: treated as **R&D only**; production path will rely on `mulmod`
 
 ### 📄 Detailed Research Document  
 ➡️ **[`research/README_MONTGOMERY.md`](research/README_MONTGOMERY.md)**

@@ -584,3 +584,37 @@ Ethereum ML-DSA-65 verifier.
 
 **[⬆ Back to Top](#montgomery-arithmetic-for-ml-dsa-65-complete-research-report)**
 
+## ⚠️ Barrett Reduction (Experimental, Rejected)
+
+As a follow-up to the Montgomery study, we also experimented with **Barrett reduction**
+for the ML-DSA-65 modulus `q = 8,380,417`:
+
+- Implemented several Barrett variants with different scaling factors (`2^32`, `2^48`, `2^64`).
+- Attempted both “lightweight” 64-bit style Barrett and full 256-bit Barrett for Solidity.
+- Verified that getting a **strictly correct** and **gas-efficient** 256-bit Barrett in pure Solidity
+  (without resorting to heavy inline assembly and 512-bit emulation) is non-trivial.
+- Preliminary gas observations showed **no clear advantage** over the native `mulmod` opcode,
+  especially given:
+  - EVM already provides highly optimized `MULMOD`,
+  - our modulus is small (~2²³),
+  - and ML-DSA verification is dominated by NTT structure and memory layout, not by the
+    cost of a single modular multiplication.
+
+**Conclusion:**
+
+> For ML-DSA-65 on Ethereum, Barrett reduction is treated as a **research experiment only**.
+> The production path should rely on the native `mulmod` for field arithmetic and focus
+> optimization efforts on:
+>
+> - in-place NTT,
+> - precomputed NTT(pubkey),
+> - memory layout,
+> - signature decoding and batching.
+
+The last experimental Barrett implementations and tests are preserved under:
+
+- `research/experimental/BarrettMLDSA_experimental.sol`
+- `research/experimental/BarrettMLDSA_experimental.t.sol`
+
+to document that this direction was explored and deliberately rejected for the
+Ethereum ML-DSA-65 verifier.

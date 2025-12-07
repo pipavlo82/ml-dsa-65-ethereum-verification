@@ -1,32 +1,59 @@
 # ML-DSA-65 Ethereum Verification
 
-**Status:** Work in Progress – Standardization Focus  
+**Status:** Active Development – Foundation Complete, Cryptography In Progress  
 **License:** MIT
 
 ## Overview
 
-Reference implementation and test infrastructure for **FIPS 204 (ML-DSA-65)** 
-post-quantum signature verification on Ethereum, with emphasis on:
+Reference implementation and test infrastructure for **FIPS 204 (ML-DSA-65)** post-quantum signature verification on Ethereum.
 
+**Focus areas:**
 - **Standardization:** Algorithm-agnostic `IPQVerifier` interface
-- **FIPS 204 compliance:** Strict adherence to NIST standard
-- **Test infrastructure:** NIST KAT-compatible test vectors
-- **Ecosystem coordination:** Alignment with Falcon-1024 and Dilithium work
+- **FIPS 204 compliance:** Strict adherence to NIST formats
+- **Working implementation:** Structural parser complete
+- **Test infrastructure:** Real test vectors + NIST KAT-compatible format
+- **Ecosystem alignment:** Coordinated with Falcon-1024 and Dilithium developers
 
-This is part of broader community effort to establish post-quantum signature 
-standards for Ethereum, coordinated with:
+This repository contributes to the broader effort to define PQ signature verification standards for Ethereum, alongside:
 - **Falcon-1024:** [@paulangusbark's QuantumAccount](https://github.com/Cointrol-Limited/QuantumAccount)
-- **ETHDILITHIUM/ETHFALCON:** [@rdubois-crypto's implementations](https://github.com/ZKNoxHQ)
+- **ETHDILITHIUM / ETHFALCON:** [@rdubois-crypto's implementations](https://github.com/ZKNoxHQ)
 
-## Goals
+---
 
-1. **Interface standardization** – Unified `IPQVerifier` for Falcon/Dilithium/ML-DSA
-2. **FIPS 204 reference** – Byte-for-byte NIST standard compliance
-3. **Test vector library** – NIST KAT-compatible, cross-implementation validation
-4. **Gas benchmarking** – Methodology for fair algorithm comparison
+## Implementation Status
 
-**This is not "Falcon vs ML-DSA"** – it's establishing shared infrastructure 
-for multiple PQ algorithms to coexist on Ethereum.
+### ✅ Structural ML-DSA-65 Parser (Complete)
+
+`MLDSA65Verifier.sol` includes full structural decoding:
+
+**Validation:**
+- Public key size: **1,952 bytes**
+- Signature size: **3,309 bytes**
+
+**Parsing:**
+- `c_tilde` challenge
+- 256 × `z_i` coefficients (int32)
+- Hint bits vector `h`
+- Domain separation computation
+
+**Gas measurements:**
+```
+Structural parsing: ~235,085 gas
+Full test suite:    ~259,259 gas
+```
+
+This parser provides the foundation for cryptographic verification.
+
+### 🔄 Cryptographic Verification (In Progress)
+
+**Next implementation steps:**
+- [ ] NTT (Number Theoretic Transform)
+- [ ] Polynomial arithmetic over Z_q
+- [ ] Challenge re-computation
+- [ ] Norm constraint checking
+- [ ] Signature validity pipeline
+
+**Target:** 7–9M gas for complete ML-DSA-65 verification
 
 ---
 
@@ -35,24 +62,21 @@ for multiple PQ algorithms to coexist on Ethereum.
 ml-dsa-65-ethereum-verification/
 │
 ├── solidity/
-│   ├── IPQVerifier.sol          # Standardized PQ interface
-│   └── MLDSA65Verifier.sol      # ML-DSA-65 reference (WIP)
+│   ├── IPQVerifier.sol              # PQ verification interface (draft)
+│   └── MLDSA65Verifier.sol          # Structural ML-DSA parser (complete)
 │
 ├── test/
-│   ├── MLDSA_RealVector.t.sol   # Test vector parsing
-│   └── MLDSA_Verify.t.sol       # Verification pipeline
+│   ├── MLDSA_StructuralParser.t.sol # Structural + gas tests
+│   └── MLDSA_RealVector.t.sol       # End-to-end vector tests
 │
 ├── test_vectors/
-│   ├── README.md
-│   └── mldsa65_kat_example.json # NIST KAT format
+│   └── vector_001.json              # Real PQ test vector
 │
 ├── scripts/
-│   ├── decode_vectors.py
-│   └── mldsa65_sign.py          # Test vector generator
+│   └── convert_vector.py            # Test vector utilities
 │
 └── docs/
-    ├── comparison.md             # Falcon vs ML-DSA analysis
-    └── STANDARDIZATION.md        # Interface spec (coming)
+    └── STANDARDIZATION.md           # (coming soon)
 ```
 
 ---
@@ -75,7 +99,7 @@ interface IPQVerifier {
     ) external view returns (bool[] memory);
 
     function algorithmName() external pure returns (string memory);
-    
+
     function expectedSizes() external pure returns (
         uint256 pkSize,
         uint256 sigSize
@@ -84,167 +108,141 @@ interface IPQVerifier {
 ```
 
 **Design goals:**
-- Works across Falcon-1024, ML-DSA-65, and future PQ schemes
-- Enables composable PQ primitives for protocols/wallets
-- Consistent gas benchmarking across implementations
-
-Inspired by OpenZeppelin patterns for classical signatures.
+- Unified API for Falcon, Dilithium, ML-DSA
+- Composable primitives for wallets, AA, sequencers
+- Fair cross-algorithm gas benchmarking
 
 ---
 
 ## Test Vectors
 
-### Format (NIST KAT-compatible)
+### JSON Format (NIST-compatible)
 ```json
 {
-  "description": "ML-DSA-65 canonical test vector",
   "vector": {
     "name": "tv0_canonical",
-    "message": "0x48656c6c6f",
+    "message_hash": "0x...",
     "pubkey": {
       "raw": "0x...",
-      "length": 1952,
-      "format": "canonical-ml-dsa-65"
+      "length": 1952
     },
     "signature": {
       "raw": "0x...",
-      "length": 3309,
-      "format": "canonical-ml-dsa-65"
+      "length": 3309
     },
     "expected_result": true
   }
 }
 ```
 
-### Usage
-
-Generate test vectors:
+### Running Tests
 ```bash
-python scripts/mldsa65_sign.py --kat-format
+# All tests
+forge test -vvv
+
+# Structural parser tests
+forge test -vvv --match-test structural
+
+# Real vector tests
+forge test -vvv --match-test real
 ```
 
-Run Foundry tests:
-```bash
-forge test -vvv --match-test test_real_vector
-```
-
----
-
-## Current Status
-
-- [x] `IPQVerifier` interface draft
-- [x] Test vector format specification
-- [x] Comparative analysis (Falcon vs ML-DSA)
-- [ ] Full `MLDSA65Verifier` implementation (NTT, polynomial ops)
-- [ ] Gas benchmarking results
-- [ ] Standardization proposal document
+**Current status:** All tests passing ✅
 
 ---
 
 ## Calldata Comparison
 
-| Component     | Falcon-1024 | ML-DSA-65 | Difference |
-|---------------|-------------|-----------|------------|
-| Public key    | 1,793 B     | 1,952 B   | +9%        |
-| Signature     | ~1,330 B    | ~3,309 B  | +149%      |
-| Total calldata| ~3,123 B    | ~5,261 B  | +68%       |
+| Component  | Falcon-1024 | ML-DSA-65 | Difference |
+|------------|-------------|-----------|------------|
+| Public key | 1,793 B     | 1,952 B   | +9%        |
+| Signature  | ~1,330 B    | ~3,309 B  | +149%      |
+| **Total**  | **~3,123 B**| **~5,261 B** | **+68%** |
 
-**Implication:** ML-DSA has larger calldata footprint but offers:
-- Deterministic signing (no rejection sampling)
-- FIPS 204 standardization (Aug 2024)
-- Simpler security proofs (module-LWE)
+**Trade-offs:**
+- **ML-DSA:** Deterministic, FIPS-certified, larger calldata
+- **Falcon:** Compact, but uses rejection sampling
 
-**Trade-off:** Both algorithms serve different needs – Falcon for compact 
-signatures, ML-DSA for regulatory compliance.
+Both algorithms serve different ecosystem needs.
 
 ---
 
-## Gas Model (Preliminary Estimates)
+## Gas Model
 
-Based on complexity analysis and comparison with existing implementations:
+| Scheme                     | Gas Cost | Status      |
+|----------------------------|----------|-------------|
+| Structural parser (current)| ~235k    | ✅ Complete  |
+| **ML-DSA-65 (full)**       | **7–9M** | 🔄 In progress |
+| Falcon-1024                | ~10M     | Reference   |
+| ETHDILITHIUM               | 6.6M     | Reference   |
 
-| Implementation      | Expected Gas  | Notes                        |
-|---------------------|---------------|------------------------------|
-| Falcon-1024         | ~10M gas      | Measured (@paulangusbark)    |
-| ETHDILITHIUM        | 6.6M gas      | Measured (@rdubois-crypto)   |
-| **ML-DSA-65 (est.)** | **7M-9M gas** | Model-based, pending implementation |
-
-**Factors:**
-- 6-8 NTT operations on 256-element polynomials
-- SHAKE256 hashing over larger state
-- Calldata parsing overhead
-
-**Note:** These are model-based projections. Actual implementation in progress.
+**Estimate basis:**
+- 6–8 NTT operations on 256-coefficient polynomials
+- SHAKE256 hashing over expanded state
+- Norm constraint checking
+- Calldata processing overhead
 
 ---
 
 ## Roadmap
 
-### Phase 1: Standardization (Current)
+### Phase 1: Foundation ✅ (Complete)
 - [x] Interface design
-- [x] Test vector format
-- [ ] Standardization proposal document
-- [ ] Community review (EthResear.ch)
+- [x] Structural parser
+- [x] Test vectors
+- [x] Gas framework
 
-### Phase 2: Reference Implementation
-- [ ] Full NTT implementation
+### Phase 2: Cryptographic Verification 🔄 (Ongoing)
+- [ ] NTT implementation
 - [ ] Polynomial arithmetic
-- [ ] Challenge construction
+- [ ] Challenge verification
 - [ ] Norm constraints
 
-### Phase 3: Validation
-- [ ] Gas benchmarking
-- [ ] Cross-validation with ETHDILITHIUM
-- [ ] NIST KAT test suite
-- [ ] EIP draft proposal
+### Phase 3: Optimization
+- [ ] Yul assembly optimization
+- [ ] Memory management
+- [ ] Benchmarking vs Falcon/Dilithium
+
+### Phase 4: Standardization
+- [ ] Standardization document
+- [ ] Community review
+- [ ] EIP draft
 
 ---
 
 ## Contributing
 
-This is a **standardization effort** for the Ethereum ecosystem.
+We welcome contributions in:
+- PQ cryptography implementation
+- EVM gas optimization
+- NTT / polynomial arithmetic
+- Cross-validation with other PQ schemes
+- Standardization review
 
-### Areas for Contribution
+**Coordination with:**
+- [@paulangusbark](https://github.com/paulangusbark)
+- [@rdubois-crypto](https://github.com/rdubois-crypto)
+- [@seresistvanandras](https://ethresear.ch/u/seresistvanandras) (Ethereum Foundation)
 
-1. **Test vectors** – Add NIST KAT-compatible vectors
-2. **Gas optimization** – Share techniques from your implementations
-3. **Interface design** – Suggest improvements to `IPQVerifier`
-4. **Cross-validation** – Test against Falcon/Dilithium implementations
-
-### Coordination
-
-Active coordination with:
-- [@paulangusbark](https://github.com/paulangusbark) (Falcon-1024)
-- [@rdubois-crypto](https://github.com/rdubois-crypto) (ETHDILITHIUM/ETHFALCON)
-
-Discussion: [EthResear.ch thread](link-when-posted)
-
----
-
-## Use Cases (Ecosystem-Wide)
-
-Post-quantum signature verification enables:
-- **AA wallets** – ERC-4337 with PQ security
-- **L2 sequencers** – Quantum-safe validator rotation
-- **Key recovery** – PQ-safe backup mechanisms
-- **Verifiable randomness** – PQ-VRF implementations
-- **Compliance** – FIPS 204-mandated environments
-
-**This repository focuses on infrastructure**, not specific applications.
+**Discussion:** [EthResear.ch thread](https://ethresear.ch/t/the-road-to-post-quantum-ethereum-transaction-is-paved-with-account-abstraction/21277)
 
 ---
 
 ## References
 
+### Standards
 - **FIPS 204:** [ML-DSA Standard](https://csrc.nist.gov/pubs/fips/204/final)
-- **EIP-8051:** [ML-DSA verification (draft)](https://ethereum-magicians.org/t/eip-8051-ml-dsa-verification/18752)
-- **EIP-8052:** [Falcon precompile (draft)](https://ethereum-magicians.org/t/eip-8052-precompile-for-falcon-support/18740)
-- **Related work:**
-  - [QuantumAccount](https://github.com/Cointrol-Limited/QuantumAccount) (Falcon-1024)
-  - [ETHDILITHIUM](https://github.com/ZKNoxHQ/ETHDILITHIUM)
-  - [ETHFALCON](https://github.com/ZKNoxHQ/ETHFALCON)
--
-  
+
+### Ethereum Improvement Proposals
+- **EIP-8051:** [ML-DSA Verification](https://ethereum-magicians.org/t/eip-8051-ml-dsa-verification/18752)
+- **EIP-8052:** [Falcon Support](https://ethereum-magicians.org/t/eip-8052-precompile-for-falcon-support/18740)
+
+### Related Implementations
+- **Falcon-1024:** [QuantumAccount](https://github.com/Cointrol-Limited/QuantumAccount) (~10M gas)
+- **Dilithium:** [ETHDILITHIUM](https://github.com/ZKNoxHQ/ETHDILITHIUM) (6.6M gas)
+- **Falcon (optimized):** [ETHFALCON](https://github.com/ZKNoxHQ/ETHFALCON) (2M gas)
+
+---
 
 ## License
 

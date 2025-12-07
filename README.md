@@ -148,7 +148,57 @@ forge test -vvv --match-test real
 ```
 
 **Current status:** All tests passing ✅
+## Adding New Test Vectors
 
+Test vectors follow a **NIST KAT-compatible JSON format**.
+
+**To contribute new vectors:**
+
+1. **Generate ML-DSA-65 signature** using any FIPS 204-compliant implementation:
+   - Python `cryptography` or `pycryptodome`
+   - Rust `pqcrypto` crate
+   - C reference implementation
+   - Any compliant library
+
+2. **Format requirements:**
+   - Public key: 1,952 bytes (hex-encoded)
+   - Signature: 3,309 bytes (hex-encoded)
+   - Message hash: 32 bytes, hex with `0x` prefix
+
+3. **Use canonical schema:**
+```json
+   {
+     "vector": {
+       "name": "custom_vector_001",
+       "message_hash": "0x48656c6c6f576f726c64...",
+       "pubkey": {
+         "raw": "0x1a2b3c4d...",
+         "length": 1952
+       },
+       "signature": {
+         "raw": "0x5e6f7a8b...",
+         "length": 3309
+       },
+       "expected_result": true
+     }
+   }
+```
+
+4. **Save as:** `test_vectors/vector_XXX.json`
+
+5. **Validate:**
+```bash
+   forge test -vvv --match-test real
+```
+
+**Conversion utility:**
+```bash
+python3 scripts/convert_vector.py input.json output.json
+```
+
+This reformats raw vectors into the canonical schema.
+
+**Vector contributions welcome!** Open a PR or issue to add ML-DSA-65 test vectors for cross-validation.
 ---
 
 ## Calldata Comparison

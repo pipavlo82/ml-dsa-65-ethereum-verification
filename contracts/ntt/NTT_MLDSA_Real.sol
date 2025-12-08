@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {NTT_MLDSA_Zetas} from "./NTT_MLDSA_Zetas.sol";
+import {NTT_MLDSA_Zetas} from "./NTT_MLDSA_Zetas_New.sol";
 
 /// @title ML-DSA-65 NTT Core (реальна Cooley–Tukey / Gentleman–Sande)
 /// @notice Поки що окрема реалізація NTT/INTT для експериментів і тестів

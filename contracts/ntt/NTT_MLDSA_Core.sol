@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "./NTT_MLDSA_Zetas.sol";
+import "./NTT_MLDSA_Zetas_New.sol";
 
 /// @title ML-DSA-65 NTT core (placeholder)
 /// @notice Сюди пізніше зайде справжній Cooley–Tukey 256-point NTT.

@@ -51,6 +51,18 @@ Full test suite:    ~259,259 gas
 ```
 
 This parser forms the foundation for cryptographic verification logic.
+## Status
+
+This repository tracks an experimental on-chain verifier for ML-DSA-65 (FIPS-204).
+
+Current milestones:
+
+- ✅ Montgomery / Barrett field arithmetic & gas benchmarks  
+- ✅ Structural verifier for real ML-DSA-65 test vector (off-chain KAT)  
+- 🧪 NTT layer for ML-DSA-65 (see PR #2: **“Stable ML-DSA-65 NTT Implementation”**)  
+- 🧪 Verifier core skeleton: Poly / PolyVec / Hint layers (see PR #3)  
+
+The NTT and verifier core are intentionally kept in feature branches and open PRs until the full verification pipeline is validated.
 
 ### 🔄 Cryptographic Verification (In Progress)
 
@@ -252,6 +264,23 @@ forge test -vvv --match-test real
 - [ ] EIP draft
 
 ---
+## NTT layer (PR #2)
+
+An experimental ML-DSA-65 NTT/INTT implementation is available in the open PR:
+
+- **PR #2 – “Stable ML-DSA-65 NTT Implementation (All Tests Passing, Finalized Classic Zetas)”**
+
+Key points:
+
+- Dimension: `n = 256`, modulus `q = 8380417` (Dilithium / ML-DSA-65 parameter set).
+- Contracts:
+  - `contracts/ntt/NTT_MLDSA_Core.sol` – NTT/INTT core (butterflies, Montgomery domain).
+  - `contracts/ntt/NTT_MLDSA_Real.sol` – test harness and round-trip wiring.
+- Tests:
+  - `test/NTT_MLDSA_Structure.t.sol` – structural tests (basis vectors, random vectors).
+  - `test/NTT_MLDSA_Real.t.sol` – gas and round-trip tests.
+
+The NTT code is considered **cryptographically correct** (round-trip tests, basis vectors, structure tests all passing) but is still in a separate branch for further gas optimisation and independent review before merging into `main`.
 
 ## Contributing
 

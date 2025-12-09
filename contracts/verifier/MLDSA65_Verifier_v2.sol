@@ -196,23 +196,74 @@ contract MLDSA65_Verifier_v2 {
         bytes raw;
     }
 
+    /// @notice Decoded public key components used by the verifier.
+    struct DecodedPublicKey {
+        MLDSA65_PolyVec.PolyVecK t1;
+        bytes32 rho; // seed for matrix A
+    }
+
+    /// @notice Decoded signature components used by the verifier.
+    struct DecodedSignature {
+        MLDSA65_PolyVec.PolyVecL z;
+        MLDSA65_Hint.HintVecL h;
+        bytes32 c; // challenge
+    }
+
+    /// @notice Decode FIPS-204 encoded ML-DSA-65 public key.
+    /// @dev Placeholder that returns a zero-initialized structure for now.
+    function _decodePublicKey(
+        bytes memory raw
+    ) internal pure returns (DecodedPublicKey memory pkDec) {
+        // Mark parameter as used to avoid warnings.
+        raw;
+        // All fields are zero-initialized by default.
+    }
+
+    /// @notice Decode FIPS-204 encoded ML-DSA-65 signature.
+    /// @dev Placeholder that returns a zero-initialized structure for now.
+    function _decodeSignature(
+        bytes memory raw
+    ) internal pure returns (DecodedSignature memory sigDec) {
+        // Mark parameter as used to avoid warnings.
+        raw;
+        // All fields are zero-initialized by default.
+    }
+
+    /// @notice Compute w = A * z - c * t1 in polynomial domain.
+    /// @dev Placeholder wiring for the matrix pipeline. Real implementation
+    ///      will use NTT, polynomial operations and hint layer.
+    function _compute_w(
+        DecodedPublicKey memory pkDec,
+        DecodedSignature memory sigDec,
+        bytes32 messageDigest
+    ) internal pure returns (MLDSA65_PolyVec.PolyVecK memory w) {
+        // Mark parameters as used to avoid warnings.
+        pkDec;
+        sigDec;
+        messageDigest;
+        // Zero-initialized PolyVecK is returned by default.
+    }
+
     /// @notice Main verification entrypoint (not implemented yet).
     function verify(
         PublicKey memory pk,
         Signature memory sig,
         bytes32 message_digest
     ) external pure returns (bool) {
-        // Parameters are intentionally unused for now – real logic will be added later.
-        pk;
-        sig;
-        message_digest;
+        DecodedPublicKey memory pkDec = _decodePublicKey(pk.raw);
+        DecodedSignature memory sigDec = _decodeSignature(sig.raw);
+
+        MLDSA65_PolyVec.PolyVecK memory w =
+            _compute_w(pkDec, sigDec, message_digest);
+
+        // Mark variable as used to avoid warnings.
+        w;
 
         // TODO:
-        // 1) Decode pk.raw → t1, rho, ...
-        // 2) Decode sig.raw → z, h, c
-        // 3) Compute A * z - c * t1 (poly ops + NTT)
-        // 4) Decompose and apply hint
-        // 5) Hash check
+        // 1) Implement real decoding for pk and sig.
+        // 2) Implement matrix pipeline A * z - c * t1.
+        // 3) Decompose w, apply hint and recompute challenge hash.
+        // 4) Compare against sigDec.c and return true/false.
 
         return false;
     }

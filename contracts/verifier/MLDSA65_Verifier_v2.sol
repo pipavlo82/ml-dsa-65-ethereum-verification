@@ -186,6 +186,9 @@ library MLDSA65_Hint {
 contract MLDSA65_Verifier_v2 {
     using MLDSA65_Poly for int32[256];
 
+    uint256 internal constant PK_BYTES = 1952;
+    uint256 internal constant SIG_BYTES = 3309;
+
     struct PublicKey {
         // FIPS-204 encoded ML-DSA-65 public key (1952 bytes)
         bytes raw;
@@ -210,23 +213,33 @@ contract MLDSA65_Verifier_v2 {
     }
 
     /// @notice Decode FIPS-204 encoded ML-DSA-65 public key.
-    /// @dev Placeholder that returns a zero-initialized structure for now.
+    /// @dev Placeholder that returns a zero-initialized structure unless
+    ///      the encoding length matches the expected FIPS-204 size.
     function _decodePublicKey(
         bytes memory raw
     ) internal pure returns (DecodedPublicKey memory pkDec) {
-        // Mark parameter as used to avoid warnings.
-        raw;
-        // All fields are zero-initialized by default.
+        if (raw.length != PK_BYTES) {
+            // Invalid encoding length: return zero-initialized structure.
+            return pkDec;
+        }
+
+        // TODO: real decoding of t1 and rho from raw.
+        return pkDec;
     }
 
     /// @notice Decode FIPS-204 encoded ML-DSA-65 signature.
-    /// @dev Placeholder that returns a zero-initialized structure for now.
+    /// @dev Placeholder that returns a zero-initialized structure unless
+    ///      the encoding length matches the expected FIPS-204 size.
     function _decodeSignature(
         bytes memory raw
     ) internal pure returns (DecodedSignature memory sigDec) {
-        // Mark parameter as used to avoid warnings.
-        raw;
-        // All fields are zero-initialized by default.
+        if (raw.length != SIG_BYTES) {
+            // Invalid encoding length: return zero-initialized structure.
+            return sigDec;
+        }
+
+        // TODO: real decoding of z, h and c from raw.
+        return sigDec;
     }
 
     /// @notice Compute w = A * z - c * t1 in polynomial domain.

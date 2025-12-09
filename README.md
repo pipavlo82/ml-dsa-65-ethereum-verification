@@ -51,30 +51,75 @@ Full test suite:    ~259,259 gas
 ```
 
 This parser forms the foundation for cryptographic verification logic.
-## Status
+
+### Status
 
 This repository tracks an experimental on-chain verifier for ML-DSA-65 (FIPS-204).
 
 Current milestones:
 
-- ✅ Montgomery / Barrett field arithmetic & gas benchmarks  
-- ✅ Structural verifier for real ML-DSA-65 test vector (off-chain KAT)  
-- 🧪 NTT layer for ML-DSA-65 (see PR #2: **“Stable ML-DSA-65 NTT Implementation”**)  
-- 🧪 Verifier core skeleton: Poly / PolyVec / Hint layers (see PR #3)  
+- ✅ Montgomery / Barrett field arithmetic & gas benchmarks
+- ✅ Structural verifier for real ML-DSA-65 test vector (off-chain KAT)
+- 🧪 Stable NTT layer for ML-DSA-65 (PR #2: "Stable ML-DSA-65 NTT Implementation")
+- 🧪 Verifier core skeleton: Poly / PolyVec / Hint layers (PR #3)
+- 🧪 Pack/coeff decoding layer for t1 / z (PR #4)
 
-The NTT and verifier core are intentionally kept in feature branches and open PRs until the full verification pipeline is validated.
+The NTT, verifier core, and pack layer are intentionally kept in feature branches and open PRs until the full verification pipeline is validated.
+
+### Open ML-DSA-65 verifier milestones (PR #2 / #3 / #4)
+
+**PR #2 – Stable ML-DSA-65 NTT Implementation (All Tests Passing, Finalized Classic Zetas)**
+
+Stable ML-DSA-65 NTT/INTT implementation based on the classic `NTT_MLDSA_Zetas.sol` table.
+
+- All NTT structure tests, random roundtrips and basis-vector checks pass.
+- No recursion issues, no MemoryOOG.
+
+Current gas profile:
+- NTT: ~2.7M gas
+- INTT: ~2.6M gas
+- Full NTT→INTT: ~5.3M gas
+
+Acts as the canonical NTT core for later verifier work.
+
+**PR #3 – ML-DSA-65 verifier core: Poly / PolyVec / Hint layers, decode harness, v2 skeleton**
+
+- Polynomial helpers over Z_q with q=8,380,417.
+- PolyVecL (l = 5) and PolyVecK (k = 6) with add/sub and NTT/INTT wrappers.
+- Hint layer skeleton: HintVecL, isValidHint, applyHintL placeholder.
+
+`MLDSA65_Verifier_v2` skeleton:
+- PublicKey / Signature structs.
+- Decoded views: `DecodedPublicKey { PolyVecK t1; bytes32 rho }`, `DecodedSignature { PolyVecL z; HintVecL h; bytes32 c }`.
+- `_decodePublicKey` / `_decodeSignature` with length guards and rho / c extracted from the last 32 bytes.
+- `_compute_w` wired as a structural placeholder starting from t1.
+
+Full Foundry harness for poly, polyvec, hint, decode, and skeleton verification.
+
+**PR #4 – ML-DSA-65 pack layer: synthetic coeff decoding for t1/z + tests**
+
+- Adds `_decodeCoeffLE(bytes data, uint256 offset)` helper (4-byte little-endian, mod q) inside `MLDSA65_Verifier_v2`.
+- Extends `_decodePublicKey` / `_decodeSignature` to:
+  - preserve existing length guards,
+  - read rho / c from the last 32 bytes,
+  - read the first 4 coefficients of t1[0] and z[0] from the leading bytes (synthetic layout).
+- New Foundry test `MLDSA_DecodeCoeffs.t.sol` checking byte→coeff mapping for t1[0][0..3] and z[0][0..3].
+
+Uses a synthetic layout for t1/z; not FIPS-204-compliant yet. No public ABI changes.
+
+Intended as an intermediate "pack layer" that will be extended or replaced once real FIPS-204 KAT vectors are wired in.
 
 ### 🔄 Cryptographic Verification (In Progress)
 
 Next implementation steps:
 
-- [ ] NTT (Number Theoretic Transform)  
-- [ ] Polynomial arithmetic over Z_q  
-- [ ] Challenge recomputation  
-- [ ] Norm constraint checking  
-- [ ] Full signature verification pipeline  
+- [ ] NTT (Number Theoretic Transform) integration into verifier pipeline
+- [ ] Polynomial arithmetic over Z_q
+- [ ] Challenge recomputation
+- [ ] Norm constraint checking
+- [ ] Full signature verification pipeline
 
-**Target:** **7–9M gas** for full ML-DSA-65 verification (based on Dilithium/Falcon benchmarks)
+Target: 7–9M gas for full ML-DSA-65 verification (based on Dilithium/Falcon benchmarks)
 
 ---
 
@@ -82,27 +127,31 @@ Next implementation steps:
 
 This repository includes a dedicated research section documenting low-level arithmetic experiments, benchmarking, and optimization strategies for ML-DSA-65 verification on EVM.
 
-### Current Research Highlight  
-**Montgomery Arithmetic for ML-DSA-65 — correctness, benchmarks, and gas analysis**
+### Current Research Highlight
+
+**Montgomery Arithmetic for ML-DSA-65** — correctness, benchmarks, and gas analysis
 
 The study covers:
 
-- ✅ Full Montgomery implementation for the ML-DSA-65 field  
-- ✅ Equivalence proof against `mulmod`  
-- ✅ 200+ correctness test cases  
-- ✅ Polynomial multiplication benchmarks (256-coeff workloads)  
-- ✅ Gas comparison: Montgomery vs native `mulmod`  
-- ✅ Practical implications for NTT design  
-- ⚠️ Why Montgomery is **not gas-efficient** for small modulus q≈2²³  
-- ✅ Recommended optimization strategy for the real ML-DSA verifier  
-2. **Barrett reduction (experimental, rejected)**  
-   - Multiple Barrett variants evaluated (64-bit style and 256-bit style)  
-   - No clear gas advantage over native `mulmod` for `q ≈ 2²³`  
-   - Added complexity and correctness risks for 256-bit inputs  
-   - Conclusion: treated as **R&D only**; production path will rely on `mulmod`
+- ✅ Full Montgomery implementation for the ML-DSA-65 field
+- ✅ Equivalence proof against mulmod
+- ✅ 200+ correctness test cases
+- ✅ Polynomial multiplication benchmarks (256-coeff workloads)
+- ✅ Gas comparison: Montgomery vs native mulmod
+- ✅ Practical implications for NTT design
+- ⚠️ Why Montgomery is not gas-efficient for small modulus q≈2²³
+- ✅ Recommended optimization strategy for the real ML-DSA verifier
 
-### 📄 Detailed Research Document  
-➡️ **[`research/README_MONTGOMERY.md`](research/README_MONTGOMERY.md)**
+**Barrett reduction** (experimental, rejected)
+
+- Multiple Barrett variants evaluated (64-bit style and 256-bit style)
+- No clear gas advantage over native mulmod for q ≈ 2²³
+- Added complexity and correctness risks for 256-bit inputs
+- Conclusion: treated as R&D only; production path will rely on mulmod
+
+### 📄 Detailed Research Document
+
+➡️ `research/README_MONTGOMERY.md`
 
 This report guides the design of the upcoming NTT, Barrett reduction module, and overall gas-optimization strategy for ML-DSA-65 on EVM.
 
@@ -160,6 +209,7 @@ interface IPQVerifier {
 ```
 
 **Goals:**
+
 - Unified wallet/AA/sequencer integration
 - Cross-algorithm benchmarking (Dilithium, Falcon, ML-DSA)
 - Standardized precompile discussions
@@ -202,6 +252,7 @@ forge test -vvv --match-test real
 ### Adding New Test Vectors
 
 **Requirements:**
+
 - PK = 1,952 bytes (hex)
 - Signature = 3,309 bytes (hex)
 - Message_hash = 32 bytes
@@ -220,67 +271,78 @@ forge test -vvv --match-test real
 
 ## Calldata Comparison
 
-| Component  | Falcon-1024 | ML-DSA-65 | Difference |
-|------------|-------------|-----------|------------|
-| Public key | 1,793 B     | 1,952 B   | +9%        |
-| Signature  | ~1,330 B    | 3,309 B   | +149%      |
-| **Total**  | **~3,123 B**| **5,261 B** | **+68%** |
+| Component | Falcon-1024 | ML-DSA-65 | Difference |
+|-----------|-------------|-----------|------------|
+| Public key | 1,793 B | 1,952 B | +9% |
+| Signature | ~1,330 B | 3,309 B | +149% |
+| Total | ~3,123 B | 5,261 B | +68% |
 
 ---
 
 ## Gas Model
 
-| Scheme                     | Gas Cost | Status         |
-|----------------------------|----------|----------------|
-| Structural parser (current)| ~235k    | ✅ Complete     |
-| **ML-DSA-65 (full)**       | **7–9M** | 🔄 In progress |
-| Falcon-1024                | ~10M     | Reference      |
-| ETHDILITHIUM               | 6.6M     | Reference      |
+| Scheme | Gas Cost | Status |
+|--------|----------|--------|
+| Structural parser (current) | ~235k | ✅ Complete |
+| ML-DSA-65 (full) | 7–9M | 🔄 In progress |
+| Falcon-1024 | ~10M | Reference |
+| ETHDILITHIUM | 6.6M | Reference |
 
 ---
 
 ## Roadmap
 
 ### Phase 1: Foundation ✅ (Complete)
+
 - [x] Interface design
 - [x] Structural parser
 - [x] Test vectors
 - [x] Gas framework
 
 ### Phase 2: Cryptographic Verification 🔄 (Ongoing)
+
 - [ ] NTT
 - [ ] Polynomial arithmetic
 - [ ] Challenge verification
 - [ ] Norm constraints
 
 ### Phase 3: Optimization 📋
+
 - [ ] Yul-level optimization
 - [ ] Memory layout improvements
 - [ ] Benchmarking vs Falcon/Dilithium
 
 ### Phase 4: Standardization 📋
+
 - [ ] STANDARDIZATION.md
 - [ ] Community review
 - [ ] EIP draft
 
 ---
+
 ## NTT layer (PR #2)
 
 An experimental ML-DSA-65 NTT/INTT implementation is available in the open PR:
 
-- **PR #2 – “Stable ML-DSA-65 NTT Implementation (All Tests Passing, Finalized Classic Zetas)”**
+**PR #2 – "Stable ML-DSA-65 NTT Implementation (All Tests Passing, Finalized Classic Zetas)"**
 
-Key points:
+**Key points:**
 
-- Dimension: `n = 256`, modulus `q = 8380417` (Dilithium / ML-DSA-65 parameter set).
-- Contracts:
-  - `contracts/ntt/NTT_MLDSA_Core.sol` – NTT/INTT core (butterflies, Montgomery domain).
-  - `contracts/ntt/NTT_MLDSA_Real.sol` – test harness and round-trip wiring.
-- Tests:
-  - `test/NTT_MLDSA_Structure.t.sol` – structural tests (basis vectors, random vectors).
-  - `test/NTT_MLDSA_Real.t.sol` – gas and round-trip tests.
+- Dimension: n = 256, modulus q = 8380417 (Dilithium / ML-DSA-65 parameter set).
 
-The NTT code is considered **cryptographically correct** (round-trip tests, basis vectors, structure tests all passing) but is still in a separate branch for further gas optimisation and independent review before merging into `main`.
+**Contracts:**
+
+- `contracts/ntt/NTT_MLDSA_Core.sol` – NTT/INTT core (butterflies, Montgomery domain).
+- `contracts/ntt/NTT_MLDSA_Real.sol` – test harness and round-trip wiring.
+
+**Tests:**
+
+- `test/NTT_MLDSA_Structure.t.sol` – structural tests (basis vectors, random vectors).
+- `test/NTT_MLDSA_Real.t.sol` – gas and round-trip tests.
+
+The NTT code is considered cryptographically correct (round-trip tests, basis vectors, structure tests all passing) but is still in a separate branch for further gas optimisation and independent review before merging into main.
+
+---
 
 ## Contributing
 
@@ -292,27 +354,31 @@ We welcome contributions in:
 - ✅ Standardization review
 
 **Coordination with:**
+
 - [@paulangusbark](https://github.com/paulangusbark) - Falcon-1024
 - [@rdubois-crypto](https://github.com/rdubois-crypto) - ETHDILITHIUM/ETHFALCON
 - Ethereum Foundation researchers
 
-**Discussion:** [EthResear.ch thread](https://ethresear.ch/t/the-road-to-post-quantum-ethereum-transaction-is-paved-with-account-abstraction/21277)
+**Discussion:** [EthResear.ch thread](https://ethresear.ch)
 
 ---
 
 ## References
 
 ### Standards
-- **[FIPS 204](https://csrc.nist.gov/pubs/fips/204/final)** - ML-DSA Standard
+
+- [FIPS 204 - ML-DSA Standard](https://csrc.nist.gov/pubs/fips/204/final)
 
 ### Ethereum Improvement Proposals
-- **[EIP-8051](https://ethereum-magicians.org/t/eip-8051-ml-dsa-verification/18752)** - ML-DSA Verification
-- **[EIP-8052](https://ethereum-magicians.org/t/eip-8052-precompile-for-falcon-support/18740)** - Falcon Support
+
+- [EIP-8051 - ML-DSA Verification](https://eips.ethereum.org/EIPS/eip-8051)
+- [EIP-8052 - Falcon Support](https://eips.ethereum.org/EIPS/eip-8052)
 
 ### Related Implementations
-- **[QuantumAccount](https://github.com/Cointrol-Limited/QuantumAccount)** - Falcon-1024 (~10M gas)
-- **[ETHFALCON](https://github.com/ZKNoxHQ/ETHFALCON)** - Falcon-512 (2M gas)
-- **[ETHDILITHIUM](https://github.com/ZKNoxHQ/ETHDILITHIUM)** - Dilithium (6.6M gas)
+
+- [QuantumAccount](https://github.com/Cointrol-Limited/QuantumAccount) - Falcon-1024 (~10M gas)
+- [ETHFALCON](https://github.com/ZKNoxHQ/ETHFALCON) - Falcon-512 (2M gas)
+- [ETHDILITHIUM](https://github.com/ZKNoxHQ/ETHDILITHIUM) - Dilithium (6.6M gas)
 
 ---
 
@@ -320,15 +386,17 @@ We welcome contributions in:
 
 MIT License
 
----
-
-
-- Research: [ethresear.ch](https://ethresear.ch/)
+**Research:** [ethresear.ch](https://ethresear.ch)
 
 ---
 
 <div align="center">
 
-Building quantum-resistant Ethereum infrastructure 🔐
+**Building quantum-resistant Ethereum infrastructure 🔐**
 
 </div>
+
+
+
+
+

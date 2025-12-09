@@ -1,24 +1,26 @@
 [profile.default]
-src = "contracts"
+src  = "contracts"
 test = "test"
-out = "out"
+out  = "out"
 libs = ["lib"]
 
 fs_permissions = [
-    { access = "read", path = "./test_vectors" }
+  { access = "read", path = "./test_vectors" },
+  { access = "read", path = "./vectors" }
 ]
 
 # Вимикаємо всі лінтери
 [profile.default.lint]
 lint_on_build = false
-severity = []
+severity      = []
 exclude_lints = []
-ignore = []
+ignore        = []
+
 solhint = { enabled = false }
-solfmt = { enabled = false }
-solar = { enabled = false }
+solfmt  = { enabled = false }
+solar   = { enabled = false }
 
 # На всяк випадок вимикаємо solar-config
 [profile.default.solar-config]
 enabled = false
-run = false
+run     = false

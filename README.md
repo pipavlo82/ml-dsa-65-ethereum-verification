@@ -109,6 +109,9 @@ Uses a synthetic layout for t1/z; not FIPS-204-compliant yet. No public ABI chan
 
 Intended as an intermediate "pack layer" that will be extended or replaced once real FIPS-204 KAT vectors are wired in.
 
+- [#5 – ML-DSA-65: FIPS-204 t1 packed decode + decode scaffolding](https://github.com/pipavlo82/ml-dsa-65-ethereum-verification/pull/5)  
+  Wires in a full FIPS-204 compatible `t1` packed decode (6×256, 10-bit), adds JSON-based KAT coverage for all `t1` coefficients, and introduces a synthetic matrix–vector core `w = A·z`, keeping the full 43/43 Foundry test suite green.
+
 ### 🔄 Cryptographic Verification (In Progress)
 
 Next implementation steps:

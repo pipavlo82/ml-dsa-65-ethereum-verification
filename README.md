@@ -59,14 +59,17 @@ This repository tracks an experimental on-chain verifier for ML-DSA-65 (FIPS-204
 Current milestones:
 
 - ✅ Montgomery / Barrett field arithmetic & gas benchmarks
-- ✅ Structural verifier for real ML-DSA-65 test vector (off-chain KAT)
+- ✅ Structural verifier for real ML-DSA-65 test vector (off-chain KAT, v1 parser)
 - 🧪 Stable NTT layer for ML-DSA-65 (PR #2: "Stable ML-DSA-65 NTT Implementation")
 - 🧪 Verifier core skeleton: Poly / PolyVec / Hint layers (PR #3)
 - 🧪 Pack/coeff decoding layer for t1 / z (PR #4)
+- 🧪 FIPS-204 t1 packed decode + synthetic `w = A·z − c·t1` layer on top of the v2 verifier (PR #5)
+
+The NTT, verifier core, and pack/FIPS layers are intentionally kept in feature branches and open PRs until the full verification pipeline is validated.
 
 The NTT, verifier core, and pack layer are intentionally kept in feature branches and open PRs until the full verification pipeline is validated.
 
-### Open ML-DSA-65 verifier milestones (PR #2 / #3 / #4)
+### Open ML-DSA-65 verifier milestones (PR #2 / #3 / #4 / #5)
 
 **PR #2 – Stable ML-DSA-65 NTT Implementation (All Tests Passing, Finalized Classic Zetas)**
 
@@ -82,48 +85,65 @@ Current gas profile:
 
 Acts as the canonical NTT core for later verifier work.
 
+---
+
 **PR #3 – ML-DSA-65 verifier core: Poly / PolyVec / Hint layers, decode harness, v2 skeleton**
 
-- Polynomial helpers over Z_q with q=8,380,417.
-- PolyVecL (l = 5) and PolyVecK (k = 6) with add/sub and NTT/INTT wrappers.
-- Hint layer skeleton: HintVecL, isValidHint, applyHintL placeholder.
+- Polynomial helpers over \( \mathbb{Z}_q \) with \( q = 8,380,417 \).
+- `PolyVecL` (ℓ = 5) and `PolyVecK` (k = 6) with add/sub and NTT/INTT wrappers on top of `NTT_MLDSA_Real`.
+- Hint layer skeleton: `HintVecL`, `isValidHint`, `applyHintL` placeholder.
 
 `MLDSA65_Verifier_v2` skeleton:
-- PublicKey / Signature structs.
-- Decoded views: `DecodedPublicKey { PolyVecK t1; bytes32 rho }`, `DecodedSignature { PolyVecL z; HintVecL h; bytes32 c }`.
-- `_decodePublicKey` / `_decodeSignature` with length guards and rho / c extracted from the last 32 bytes.
-- `_compute_w` wired as a structural placeholder starting from t1.
+
+- Public key / signature wrappers:  
+  `struct PublicKey { bytes raw; }`, `struct Signature { bytes raw; }`
+- Decoded views:
+  - `DecodedPublicKey { bytes32 rho; PolyVecK t1; }`
+  - `DecodedSignature { bytes32 c; PolyVecL z; HintVecL h; }`
+- `_decodePublicKey` / `_decodeSignature` overloads for both struct and raw-byte callers, with length guards.
+- `verify()` ABI in place, currently returning `false` by design (cryptographic checks not yet wired).
 
 Full Foundry harness for poly, polyvec, hint, decode, and skeleton verification.
 
-**PR #4 – ML-DSA-65 pack layer: synthetic coeff decoding for t1/z + tests**
+---
+
+**PR #4 – Synthetic pack layer: byte→coeff decoding for t1 / z + tests**
 
 - Adds `_decodeCoeffLE(bytes data, uint256 offset)` helper (4-byte little-endian, mod q) inside `MLDSA65_Verifier_v2`.
 - Extends `_decodePublicKey` / `_decodeSignature` to:
   - preserve existing length guards,
-  - read rho / c from the last 32 bytes,
-  - read the first 4 coefficients of t1[0] and z[0] from the leading bytes (synthetic layout).
-- New Foundry test `MLDSA_DecodeCoeffs.t.sol` checking byte→coeff mapping for t1[0][0..3] and z[0][0..3].
+  - read `rho` / `c` from the last 32 bytes,
+  - read the first few coefficients of `t1[0]` and `z[0]` from the leading bytes (synthetic layout).
+- New Foundry test `MLDSA_DecodeCoeffs.t.sol` checking byte→coeff mapping for `t1[0][0..3]` and `z[0][0..3]`.
 
-Uses a synthetic layout for t1/z; not FIPS-204-compliant yet. No public ABI changes.
+Uses a **synthetic** layout for t1/z; not FIPS-204-compliant by design. No public ABI changes. Intended as an intermediate pack layer to bootstrap KAT generation and byte-level tests.
 
-Intended as an intermediate "pack layer" that will be extended or replaced once real FIPS-204 KAT vectors are wired in.
+---
 
-- [#5 – ML-DSA-65: FIPS-204 t1 packed decode + decode scaffolding](https://github.com/pipavlo82/ml-dsa-65-ethereum-verification/pull/5)  
-  Wires in a full FIPS-204 compatible `t1` packed decode (6×256, 10-bit), adds JSON-based KAT coverage for all `t1` coefficients, and introduces a synthetic matrix–vector core `w = A·z`, keeping the full 43/43 Foundry test suite green.
-- ✅ **FIPS-204 decode + synthetic matrix–vector layer (PR #5)**  
-  - Full public key decode: FIPS-204 compatible `t1` unpack (6×256, 10-bit) + `rho` from the last 32 bytes.  
-  - Full signature decode: `z` as a PolyVecL + `c` from the last 32 bytes (short signatures never revert).  
-  - NTT bridges and tests for `PolyVecL` / `PolyVecK` using `NTT_MLDSA_Real`.  
-  - Synthetic `ExpandA` + matrix–vector layer computing a test-only  
-    `w = A·z − c·t1` on chain (using a synthetic challenge polynomial).  
-  - Verified end-to-end by a “real vector KAT” harness and matrix/PolyVec NTT roundtrips,  
-    with all 43 Foundry tests green.
-> **Out of scope for PR #5:**  
-> This repository does **not** yet implement the real FIPS-204 `ExpandA`,  
-> the official `poly_challenge` construction, coefficient decomposition / hint logic,  
-> or a full ML-DSA-65 `verify()` routine. Those pieces will be introduced in follow-up PRs
-> once the packing / decoding / NTT and synthetic `w = A·z − c·t1` layers are fully settled.
+**PR #5 – FIPS-204 t1 packed decode + synthetic matrix–vector layer (current feature branch)**  
+<https://github.com/pipavlo82/ml-dsa-65-ethereum-verification/pull/5>
+
+- Full public key decode:
+  - FIPS-204 compatible `t1` unpack (6×256, 10-bit) from the first 1,920 bytes,
+  - `rho` from the last 32 bytes of the 1,952-byte public key.
+- Full signature decode:
+  - `z` as a `PolyVecL` (sequential 32-bit LE coefficients),
+  - `c` from the last 32 bytes,
+  - short signatures never revert (prefix-only decode).
+- NTT bridges and tests for `PolyVecL` / `PolyVecK` via `NTT_MLDSA_Real` (roundtrip basis vectors + random vectors).
+- Synthetic `ExpandA` + matrix–vector layer computing a **test-only**
+  `w = A·z − c·t1` on chain (using a synthetic challenge polynomial and synthetic `ExpandA`).
+- End-to-end “real vector KAT” harness and matrix/PolyVec NTT tests keep **all 43/43 Foundry tests green** on this feature branch.
+
+> **Out of scope for PR #5**  
+> PR #5 intentionally does **not** implement:
+> - the real FIPS-204 `ExpandA` (SHAKE256-based XOF and rejection sampling),
+> - the official `poly_challenge` construction,
+> - coefficient decomposition / hint application logic,
+> - or a full ML-DSA-65 `verify()` routine.
+>
+> These components will be introduced in follow-up PRs once the packing / decoding / NTT and synthetic  
+> `w = A·z − c·t1` layers are fully settled and reviewed.
 
 ### 🔄 Cryptographic Verification (In Progress)
 

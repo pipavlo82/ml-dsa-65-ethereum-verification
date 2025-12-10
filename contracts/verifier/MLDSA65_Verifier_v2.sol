@@ -44,7 +44,7 @@ library MLDSA65_Poly {
     }
 
     /// @notice r = a ∘ b (pointwise) mod q, coefficient-wise multiply
-    /// @dev Simple reference implementation; later will be replaced by Montgomery/NTT-friendly version.
+    /// @dev Simple reference implementation; later can be replaced by Montgomery-friendly version.
     function pointwiseMul(
         int32[256] memory a,
         int32[256] memory b
@@ -247,7 +247,8 @@ library MLDSA65_Hint {
 //
 
 /// @notice ML-DSA-65 Verifier v2 – skeleton for the real verification pipeline.
-/// @dev Currently contains: ABI, decode layer, preparation for polynomial/NTT layer.
+/// @dev Currently contains: ABI, decode layer, synthetic ExpandA, and w = A·z - c·t1 with a synthetic challenge.
+///      Full FIPS-204 decomposition/hints are explicitly out-of-scope for this version.
 contract MLDSA65_Verifier_v2 {
     using MLDSA65_Poly for int32[256];
 
@@ -512,6 +513,15 @@ contract MLDSA65_Verifier_v2 {
     // Synthetic ExpandA(rho) — still test-only A, NOT real FIPS-204 ExpandA
     //
 
+    /// @notice Synthetic A[row][col] poly in the time domain via MLDSA65_ExpandA.
+    function _expandA_poly(
+        bytes32 rho,
+        uint8 row,
+        uint8 col
+    ) internal pure returns (int32[256] memory a) {
+        a = MLDSA65_ExpandA.expandA_poly(rho, row, col);
+    }
+
     /// @notice Synthetic A[row][col] poly in NTT domain.
     /// @dev Uses MLDSA65_ExpandA.expandA_poly (time-domain synthetic ExpandA),
     ///      then bridges via PolyVecL.nttL into the NTT domain.
@@ -521,7 +531,7 @@ contract MLDSA65_Verifier_v2 {
         uint8 col
     ) internal pure returns (int32[256] memory a_ntt) {
         // 1) Generate A in the time domain via separate ExpandA library
-        int32[256] memory a = MLDSA65_ExpandA.expandA_poly(rho, row, col);
+        int32[256] memory a = _expandA_poly(rho, row, col);
 
         // 2) Wrap into PolyVecL to reuse the NTT bridge
         MLDSA65_PolyVec.PolyVecL memory tmp;
@@ -534,36 +544,77 @@ contract MLDSA65_Verifier_v2 {
     }
 
     //
+    // Synthetic challenge polynomial
+    //
+
+    /// @notice Synthetic challenge polynomial c(x) ∈ {-1,0,1}^256, derived from 32-byte seed.
+    /// @dev NOT FIPS-204 poly_challenge. For c == 0 we intentionally return the zero polynomial
+    ///      so that existing matrix-vector tests (which use c=0) still exercise pure w = A·z.
+    function _challengePoly(
+        bytes32 seed
+    ) internal pure returns (int32[256] memory cpoly) {
+        // Special case: zero seed → zero polynomial
+        if (seed == bytes32(0)) {
+            return cpoly;
+        }
+
+        for (uint256 i = 0; i < 256; ++i) {
+            // Simple PRF: keccak256(seed || i), then map first byte to {-1,0,1}
+            bytes32 h = keccak256(abi.encodePacked(seed, uint16(i)));
+            uint8 v = uint8(h[0]) % 3;
+
+            int32 coeff;
+            if (v == 0) {
+                coeff = 0;
+            } else if (v == 1) {
+                coeff = 1;
+            } else {
+                coeff = -1;
+            }
+
+            cpoly[i] = coeff;
+        }
+    }
+
+    //
     // Structural placeholder for w = A * z - c * t1
     //
 
-    /// @notice Synthetic w = A · z in the NTT domain (still without -c·t1 and high/low bits).
-    /// @dev A is generated via _expandA_poly_ntt (synthetic ExpandA in NTT domain),
-    ///      z is transformed to NTT once, multiplication is pointwise in NTT domain,
-    ///      then INTT is used to return to the time domain.
+    /// @notice Synthetic w = A·z - c·t1 in the NTT domain.
+    /// @dev A is generated via _expandA_poly_ntt (synthetic ExpandA),
+    ///      z is converted to NTT once, c is expanded to a small challenge polynomial,
+    ///      t1 is converted to NTT per row.
+    ///      This is still NOT a full FIPS-204 verify pipeline: decomposition and hints are
+    ///      explicitly left out-of-scope for this contract version.
     function _compute_w(
         DecodedPublicKey memory dpk,
         DecodedSignature memory dsig
     ) internal pure returns (MLDSA65_PolyVec.PolyVecK memory w) {
         bytes32 rho = dpk.rho;
 
-        // 1) Convert z into NTT domain once
+        // 1) NTT(z)
         MLDSA65_PolyVec.PolyVecL memory z_ntt = MLDSA65_PolyVec.nttL(dsig.z);
 
-        // 2) For each row of the matrix A[k,*] compute:
-        //    w[k] = INTT( Σ_j A_ntt[k,j] ∘ z_ntt[j] )
-        for (uint256 k = 0; k < MLDSA65_PolyVec.K; ++k) {
-            int32[256] memory acc_ntt; // default zero in NTT domain
+        // 2) Optional challenge polynomial in NTT domain (only if c != 0)
+        bool hasChallenge = (dsig.c != bytes32(0));
+        int32[256] memory c_ntt;
+        if (hasChallenge) {
+            int32[256] memory c_poly = _challengePoly(dsig.c);
+            c_ntt = MLDSA65_PolyVec._nttPoly(c_poly);
+        }
 
+        // 3) For each row k: w[k] = INTT( Σ_j A_ntt[k,j] ∘ z_ntt[j] - c_ntt ∘ t1_ntt[k] )
+        for (uint256 k = 0; k < MLDSA65_PolyVec.K; ++k) {
+            int32[256] memory acc_ntt; // zero in NTT domain
+
+            // A·z part
             for (uint256 j = 0; j < MLDSA65_PolyVec.L; ++j) {
-                // A_ntt[k,j] – NTT(A[k,j])
                 int32[256] memory a_ntt = _expandA_poly_ntt(
                     rho,
                     uint8(k),
                     uint8(j)
                 );
 
-                // pointwiseMul in NTT representation: NTT(A[k,j] * z[j])
                 int32[256] memory prod_ntt = MLDSA65_Poly.pointwiseMul(
                     a_ntt,
                     z_ntt.polys[j]
@@ -572,19 +623,29 @@ contract MLDSA65_Verifier_v2 {
                 acc_ntt = MLDSA65_Poly.add(acc_ntt, prod_ntt);
             }
 
-            // 3) Return to time domain via PolyVecK.inttK
+            // - c·t1 part (only if we have a non-zero challenge seed)
+            if (hasChallenge) {
+                int32[256] memory t1_ntt = MLDSA65_PolyVec._nttPoly(
+                    dpk.t1.polys[k]
+                );
+                int32[256] memory ct1_ntt = MLDSA65_Poly.pointwiseMul(
+                    c_ntt,
+                    t1_ntt
+                );
+                acc_ntt = MLDSA65_Poly.sub(acc_ntt, ct1_ntt);
+            }
+
+            // Back to time domain via PolyVecK.inttK
             MLDSA65_PolyVec.PolyVecK memory tmpK;
             tmpK.polys[0] = acc_ntt;
 
             MLDSA65_PolyVec.PolyVecK memory tmpK_time = MLDSA65_PolyVec.inttK(
                 tmpK
             );
-
             w.polys[k] = tmpK_time.polys[0];
         }
 
-        // For now we do not use c and h (only z).
-        dsig.c;
+        // hints are still unused; full decomposition/hint logic is out-of-scope here
         dsig.h;
 
         return w;

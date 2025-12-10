@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import {NTT_MLDSA_Real} from "../ntt/NTT_MLDSA_Real.sol";
 import {MLDSA65_ExpandA} from "./MLDSA65_ExpandA.sol";
+import {MLDSA65_Challenge} from "./MLDSA65_Challenge.sol";
 
 //
 // =============================
@@ -544,39 +545,6 @@ contract MLDSA65_Verifier_v2 {
     }
 
     //
-    // Synthetic challenge polynomial
-    //
-
-    /// @notice Synthetic challenge polynomial c(x) ∈ {-1,0,1}^256, derived from 32-byte seed.
-    /// @dev NOT FIPS-204 poly_challenge. For c == 0 we intentionally return the zero polynomial
-    ///      so that existing matrix-vector tests (which use c=0) still exercise pure w = A·z.
-    function _challengePoly(
-        bytes32 seed
-    ) internal pure returns (int32[256] memory cpoly) {
-        // Special case: zero seed → zero polynomial
-        if (seed == bytes32(0)) {
-            return cpoly;
-        }
-
-        for (uint256 i = 0; i < 256; ++i) {
-            // Simple PRF: keccak256(seed || i), then map first byte to {-1,0,1}
-            bytes32 h = keccak256(abi.encodePacked(seed, uint16(i)));
-            uint8 v = uint8(h[0]) % 3;
-
-            int32 coeff;
-            if (v == 0) {
-                coeff = 0;
-            } else if (v == 1) {
-                coeff = 1;
-            } else {
-                coeff = -1;
-            }
-
-            cpoly[i] = coeff;
-        }
-    }
-
-    //
     // Structural placeholder for w = A * z - c * t1
     //
 
@@ -599,7 +567,7 @@ contract MLDSA65_Verifier_v2 {
         bool hasChallenge = (dsig.c != bytes32(0));
         int32[256] memory c_ntt;
         if (hasChallenge) {
-            int32[256] memory c_poly = _challengePoly(dsig.c);
+            int32[256] memory c_poly = MLDSA65_Challenge.challengePoly(dsig.c);
             c_ntt = MLDSA65_PolyVec._nttPoly(c_poly);
         }
 

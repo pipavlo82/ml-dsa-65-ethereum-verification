@@ -111,6 +111,19 @@ Intended as an intermediate "pack layer" that will be extended or replaced once 
 
 - [#5 – ML-DSA-65: FIPS-204 t1 packed decode + decode scaffolding](https://github.com/pipavlo82/ml-dsa-65-ethereum-verification/pull/5)  
   Wires in a full FIPS-204 compatible `t1` packed decode (6×256, 10-bit), adds JSON-based KAT coverage for all `t1` coefficients, and introduces a synthetic matrix–vector core `w = A·z`, keeping the full 43/43 Foundry test suite green.
+- ✅ **FIPS-204 decode + synthetic matrix–vector layer (PR #5)**  
+  - Full public key decode: FIPS-204 compatible `t1` unpack (6×256, 10-bit) + `rho` from the last 32 bytes.  
+  - Full signature decode: `z` as a PolyVecL + `c` from the last 32 bytes (short signatures never revert).  
+  - NTT bridges and tests for `PolyVecL` / `PolyVecK` using `NTT_MLDSA_Real`.  
+  - Synthetic `ExpandA` + matrix–vector layer computing a test-only  
+    `w = A·z − c·t1` on chain (using a synthetic challenge polynomial).  
+  - Verified end-to-end by a “real vector KAT” harness and matrix/PolyVec NTT roundtrips,  
+    with all 43 Foundry tests green.
+> **Out of scope for PR #5:**  
+> This repository does **not** yet implement the real FIPS-204 `ExpandA`,  
+> the official `poly_challenge` construction, coefficient decomposition / hint logic,  
+> or a full ML-DSA-65 `verify()` routine. Those pieces will be introduced in follow-up PRs
+> once the packing / decoding / NTT and synthetic `w = A·z − c·t1` layers are fully settled.
 
 ### 🔄 Cryptographic Verification (In Progress)
 

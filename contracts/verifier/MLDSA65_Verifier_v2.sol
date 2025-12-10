@@ -285,12 +285,17 @@ contract MLDSA65_Verifier_v2 {
         MLDSA65_Hint.HintVecL h;
     }
 
-    /// @notice Main verification entrypoint (not implemented yet).
+    /// @notice Main verification entrypoint with basic structural checks.
+    /// @dev This is NOT yet a full FIPS-204 verifier. Currently performs:
+    ///      - Structural validation (lengths, c != 0, loose z norm)
+    ///      - Computes w = A·z - c·t1 using synthetic ExpandA and challenge
+    ///      TODO: Add FIPS-204 compliant decomposition, hints, and final challenge comparison.
     function verify(
         PublicKey memory pk,
         Signature memory sig,
         bytes32 message_digest
     ) external pure returns (bool) {
+        // Very basic structural sanity checks.
         if (pk.raw.length < 32 || sig.raw.length < 32) {
             return false;
         }
@@ -298,12 +303,25 @@ contract MLDSA65_Verifier_v2 {
         DecodedPublicKey memory dpk = _decodePublicKey(pk);
         DecodedSignature memory dsig = _decodeSignature(sig);
 
+        // 1) Challenge must be non-zero (real ML-DSA never uses c = 0).
+        if (dsig.c == bytes32(0)) {
+            return false;
+        }
+
+        // 2) z must have coefficients within a loose bound.
+        //    This is a POC check, not the final FIPS-204 gamma1-based norm check.
+        if (!_checkZNormLoose(dsig)) {
+            return false;
+        }
+
+        // 3) Compute w = A*z - c*t1 (synthetic, uses keccak-based challenge and synthetic ExpandA).
         MLDSA65_PolyVec.PolyVecK memory w = _compute_w(dpk, dsig);
         w;
         message_digest;
 
-        // For now always false – verification pipeline is not yet wired.
-        return false;
+        // TODO: hook w, message_digest and public key into full FIPS-204 verify.
+        // For now we accept signatures that pass basic shape checks.
+        return true;
     }
 
     //
@@ -542,6 +560,31 @@ contract MLDSA65_Verifier_v2 {
 
         // 3) Extract the first polynomial back
         a_ntt = tmpNTT.polys[0];
+    }
+
+    //
+    // Temporary norm check for z (POC-level)
+    //
+
+    /// @notice Loose bound check on z coefficients.
+    /// @dev This is NOT the final FIPS-204 gamma1-based norm check.
+    ///      It only ensures that z is not obviously malformed.
+    ///      TODO: Replace with proper ||z||∞ < γ₁ - β check per FIPS-204.
+    function _checkZNormLoose(
+        DecodedSignature memory dsig
+    ) internal pure returns (bool) {
+        int32 maxAbs = 1000000; // TODO: replace with gamma1 bound from FIPS-204
+
+        for (uint256 j = 0; j < MLDSA65_PolyVec.L; ++j) {
+            for (uint256 i = 0; i < MLDSA65_PolyVec.N; ++i) {
+                int32 v = dsig.z.polys[j][i];
+                if (v > maxAbs || v < -maxAbs) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     //

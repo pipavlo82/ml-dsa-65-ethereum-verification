@@ -555,24 +555,17 @@ contract MLDSA65_Verifier_v2 {
     }
 
     /// @notice Synthetic A[row][col] poly in NTT domain.
-    /// @dev Uses MLDSA65_ExpandA.expandA_poly (time-domain synthetic ExpandA),
-    ///      then bridges via PolyVecL.nttL into the NTT domain.
+    /// @dev Uses MLDSA65_ExpandA.expandA_poly (time domain) and a single
+    ///      poly-level NTT bridge, без зайвого nttL по L-поліно.
     function _expandA_poly_ntt(
         bytes32 rho,
         uint8 row,
         uint8 col
     ) internal pure returns (int32[256] memory a_ntt) {
-        // 1) Generate A in the time domain via separate ExpandA library
+        // 1) A в time-domain
         int32[256] memory a = _expandA_poly(rho, row, col);
-
-        // 2) Wrap into PolyVecL to reuse the NTT bridge
-        MLDSA65_PolyVec.PolyVecL memory tmp;
-        tmp.polys[0] = a;
-
-        MLDSA65_PolyVec.PolyVecL memory tmpNTT = MLDSA65_PolyVec.nttL(tmp);
-
-        // 3) Extract the first polynomial back
-        a_ntt = tmpNTT.polys[0];
+        // 2) Один-єдиний NTT для цього полінома
+        a_ntt = MLDSA65_PolyVec._nttPoly(a);
     }
 
     //
@@ -672,14 +665,9 @@ contract MLDSA65_Verifier_v2 {
                 acc_ntt = MLDSA65_Poly.sub(acc_ntt, ct1_ntt);
             }
 
-            // Back to time domain via PolyVecK.inttK
-            MLDSA65_PolyVec.PolyVecK memory tmpK;
-            tmpK.polys[0] = acc_ntt;
-
-            MLDSA65_PolyVec.PolyVecK memory tmpK_time = MLDSA65_PolyVec.inttK(
-                tmpK
-            );
-            w.polys[k] = tmpK_time.polys[0];
+            // Back to time domain: single-poly INTT instead of full PolyVecK.inttK
+            int32[256] memory w_time = MLDSA65_PolyVec._inttPoly(acc_ntt);
+            w.polys[k] = w_time;
         }
 
         // hints are still unused; full decomposition/hint logic is out-of-scope here

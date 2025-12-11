@@ -25,6 +25,8 @@ contract MLDSA_MatrixVecGas_Test is Test {
             "w = A*z (no challenge) gas",
             gasUsed
         );
+        // М'який upper-bound, ти зараз ~98–105M
+        assertLt(gasUsed, 200_000_000);
     }
 
     /// @notice Measure gas for w = A*z - c*t1 with non-zero c (full synthetic path).
@@ -40,6 +42,8 @@ contract MLDSA_MatrixVecGas_Test is Test {
             "w = A*z - c*t1 (with challenge) gas",
             gasUsed
         );
+        // Теж з запасом відносно твоїх ~115–123M
+        assertLt(gasUsed, 200_000_000);
     }
 }
 
@@ -120,3 +124,4 @@ contract MLDSA65_Verifier_v2_Harness is MLDSA65_Verifier_v2 {
         }
     }
 }
+

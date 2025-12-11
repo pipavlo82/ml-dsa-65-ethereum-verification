@@ -11,6 +11,35 @@ library NTT_MLDSA_Real {
     // 256^{-1} mod Q = 8347681 (згенеровано скриптом)
     uint256 internal constant N_INV = 8347681;
 
+    // ==========================
+    //  Local modular helpers
+    // ==========================
+
+    /// @dev x, y завжди в [0, Q); результат також в [0, Q)
+    function _addModQ(uint256 x, uint256 y) private pure returns (uint256 r) {
+        unchecked {
+            r = x + y;
+            if (r >= Q) r -= Q;
+        }
+    }
+
+    /// @dev (x - y) mod Q без addmod
+    function _subModQ(uint256 x, uint256 y) private pure returns (uint256 r) {
+        unchecked {
+            r = x + Q - y;
+            if (r >= Q) r -= Q;
+        }
+    }
+
+    /// @dev (x * y) mod Q.
+    /// Варіант 1: простий * % Q (поки що цього достатньо).
+    function _mulModQ(uint256 x, uint256 y) private pure returns (uint256 r) {
+        unchecked {
+            uint256 p = x * y;  // x,y < Q → p < 2^46, overflow не можливий
+            r = p % Q;
+        }
+    }
+
     /// @notice Forward NTT (Cooley–Tukey, decimation-in-time)
     /// @dev Використовує zetas[i] з NTT_MLDSA_Zetas.getZeta(i)
     function ntt(uint256[256] memory a) internal pure returns (uint256[256] memory) {
@@ -24,12 +53,12 @@ library NTT_MLDSA_Real {
 
                     for (uint256 j = start; j < start + len; j++) {
                         uint256 aj = a[j];
-                        uint256 t = mulmod(zeta, a[j + len], Q);
+                        uint256 t = _mulModQ(zeta, a[j + len]);
 
                         // a[j]     = aj + t (mod Q)
                         // a[j+len] = aj - t (mod Q)
-                        a[j] = addmod(aj, t, Q);
-                        a[j + len] = addmod(aj, Q - t, Q);
+                        a[j] = _addModQ(aj, t);
+                        a[j + len] = _subModQ(aj, t);
                     }
                 }
             }
@@ -55,21 +84,22 @@ library NTT_MLDSA_Real {
 
                         // sum  = a[j] + a[j+len]
                         // diff = a[j] - a[j+len]
-                        uint256 sum = addmod(aj, ajl, Q);
-                        uint256 diff = addmod(aj, Q - ajl, Q);
+                        uint256 sum = _addModQ(aj, ajl);
+                        uint256 diff = _subModQ(aj, ajl);
 
                         a[j] = sum;
-                        a[j + len] = mulmod(zeta, diff, Q);
+                        a[j + len] = _mulModQ(zeta, diff);
                     }
                 }
             }
 
             // Множимо на N^{-1} mod Q
             for (uint256 i = 0; i < N; i++) {
-                a[i] = mulmod(a[i], N_INV, Q);
+                a[i] = _mulModQ(a[i], N_INV);
             }
 
             return a;
         }
     }
 }
+

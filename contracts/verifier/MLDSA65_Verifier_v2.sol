@@ -254,6 +254,11 @@ contract MLDSA65_Verifier_v2 {
     using MLDSA65_Poly for int32[256];
 
     int32 internal constant Q = 8380417;
+    // For ML-DSA-65 (Dilithium3-level) γ₁ = 2¹⁹.
+    int32 internal constant GAMMA1 = int32(1 << 19);
+    // Temporary z-norm bound used in verify(): |z_i| < γ₁.
+    // TODO: if needed, tighten to (γ₁ - β) once β is wired in.
+    int32 internal constant Z_NORM_BOUND = GAMMA1 - 1;
 
     // ============================
     // Public key layout constants
@@ -308,19 +313,27 @@ contract MLDSA65_Verifier_v2 {
             return false;
         }
 
-        // 2) z must have coefficients within a loose bound.
-        //    This is a POC check, not the final FIPS-204 gamma1-based norm check.
-        if (!_checkZNormLoose(dsig)) {
+        // 2) z must have coefficients within γ₁ bound.
+        //    This enforces |z_i| < γ₁ for all coefficients.
+        if (!_checkZNormGamma1Bound(dsig)) {
             return false;
         }
 
         // 3) Compute w = A*z - c*t1 (synthetic, uses keccak-based challenge and synthetic ExpandA).
         MLDSA65_PolyVec.PolyVecK memory w = _compute_w(dpk, dsig);
-        w;
-        message_digest;
+        w; // w поки що не використовуємо для перевірки декомпозиції
 
-        // TODO: hook w, message_digest and public key into full FIPS-204 verify.
-        // For now we accept signatures that pass basic shape checks.
+        // 4) FIPS-style challenge consistency:
+        //    поліном з seed, що лежить у сигнатурі (dsig.c),
+        //    має збігатися з поліном із message_digest.
+        int32[256] memory c_from_sig = MLDSA65_Challenge.poly_challenge(dsig.c);
+        int32[256] memory c_from_msg = MLDSA65_Challenge.poly_challenge(message_digest);
+
+        if (!_polyEq(c_from_sig, c_from_msg)) {
+            return false;
+        }
+
+        // Усе пройшло: структура ок, норми ок, challenge seed узгоджений.
         return true;
     }
 
@@ -566,14 +579,12 @@ contract MLDSA65_Verifier_v2 {
     // Temporary norm check for z (POC-level)
     //
 
-    /// @notice Loose bound check on z coefficients.
-    /// @dev This is NOT the final FIPS-204 gamma1-based norm check.
-    ///      It only ensures that z is not obviously malformed.
-    ///      TODO: Replace with proper ||z||∞ < γ₁ - β check per FIPS-204.
-    function _checkZNormLoose(
+    /// @notice Bound check on z coefficients using γ₁ ≈ 2¹⁹.
+    /// @dev Placeholder for the final FIPS-204 ||z||∞ < γ₁ - β check.
+    function _checkZNormGamma1Bound(
         DecodedSignature memory dsig
     ) internal pure returns (bool) {
-        int32 maxAbs = 1000000; // TODO: replace with gamma1 bound from FIPS-204
+        int32 maxAbs = Z_NORM_BOUND;
 
         for (uint256 j = 0; j < MLDSA65_PolyVec.L; ++j) {
             for (uint256 i = 0; i < MLDSA65_PolyVec.N; ++i) {
@@ -584,6 +595,21 @@ contract MLDSA65_Verifier_v2 {
             }
         }
 
+        return true;
+    }
+
+    //
+    // Helper: equality of int32[256] polynomials
+    //
+    function _polyEq(
+        int32[256] memory a,
+        int32[256] memory b
+    ) internal pure returns (bool) {
+        for (uint256 i = 0; i < 256; ++i) {
+            if (a[i] != b[i]) {
+                return false;
+            }
+        }
         return true;
     }
 
@@ -610,7 +636,7 @@ contract MLDSA65_Verifier_v2 {
         bool hasChallenge = (dsig.c != bytes32(0));
         int32[256] memory c_ntt;
         if (hasChallenge) {
-            int32[256] memory c_poly = MLDSA65_Challenge.challengePoly(dsig.c);
+            int32[256] memory c_poly = MLDSA65_Challenge.poly_challenge(dsig.c);
             c_ntt = MLDSA65_PolyVec._nttPoly(c_poly);
         }
 

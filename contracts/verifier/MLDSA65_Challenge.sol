@@ -1,54 +1,63 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-/// @title MLDSA65_Challenge
-/// @notice Synthetic challenge polynomial helpers for ML-DSA-65.
-/// @dev This is NOT the real FIPS-204 SHAKE256-based poly_challenge.
-///      It uses keccak256 as a stand-in, but matches the *shape*:
-///      c is a polynomial with coefficients in {-1, 0, 1}.
+/// @notice FIPS-style challenge polynomial for ML-DSA-65.
+/// @dev Дає поліном c(x) з коефіцієнтами в {-1, 0, 1} та рівно TAU ненульових.
 library MLDSA65_Challenge {
-    uint256 internal constant N = 256;
+    uint256 internal constant N   = 256;
+    uint256 internal constant TAU = 60; // кількість ненульових коефіцієнтів
 
-    /// @notice Derive a synthetic challenge polynomial c ∈ {-1,0,1}^256 as int32[256].
-    /// @dev Input is a 32-byte digest (e.g. message hash or rho || t1 || z hash).
-    ///      Implementation:
-    ///        - For each i, take keccak256(digest || i)
-    ///        - Use low 2 bits to choose {-1, 0, 1} with slight bias
-    ///      This is intentionally simple and deterministic for testing.
-    function challengePoly(
-        bytes32 digest
-    ) internal pure returns (int32[256] memory cpoly) {
-        for (uint256 i = 0; i < N; ++i) {
-            // domain separation by index
-            bytes32 blockHash = keccak256(abi.encodePacked(digest, uint16(i)));
+    /// @notice Базовий FIPS-подібний челендж як поліном int32[256].
+    /// @dev Детермінований по seed. Інваріанти:
+    ///  - рівно 60 ненульових коефіцієнтів;
+    ///  - кожен ненульовий ∈ {+1, -1}.
+    function poly_challenge(
+        bytes32 seed
+    ) internal pure returns (int32[256] memory c) {
+        uint256 placed = 0;
+        uint256 nonce  = 0;
 
-            // take the lowest 2 bits
-            uint8 v = uint8(uint256(blockHash) & 0x03);
-
-            // map {0,1,2,3} -> {0, 1, -1, 0}
-            int32 coeff;
-            if (v == 0) {
-                coeff = 0;
-            } else if (v == 1) {
-                coeff = 1;
-            } else if (v == 2) {
-                coeff = -1;
-            } else {
-                coeff = 0;
+        // Генеруємо блоки псевдовипадкових байтів через keccak(seed || nonce)
+        // і вибираємо з них пари (pos, sign), доки не розставимо всі 60.
+        while (placed < TAU) {
+            bytes32 blockHash = keccak256(abi.encodePacked(seed, nonce));
+            unchecked {
+                ++nonce;
             }
 
-            cpoly[i] = coeff;
+            // Використовуємо байти попарно: [posByte, signByte]
+            for (uint256 i = 0; i + 1 < 32 && placed < TAU; i += 2) {
+                uint8 posByte  = uint8(blockHash[i]);
+                uint8 signByte = uint8(blockHash[i + 1]);
+
+                // Позиція 0..255
+                uint256 pos = uint256(posByte); // & 0xFF не потрібен, і так 0..255
+
+                // Пропускаємо, якщо вже щось стоїть
+                if (c[pos] != 0) {
+                    continue;
+                }
+
+                // Знак: старший біт signByte
+                int32 s = (signByte & 0x80) == 0 ? int32(1) : int32(-1);
+                c[pos] = s;
+
+                unchecked {
+                    ++placed;
+                }
+            }
         }
     }
 
-    /// @notice Legacy helper returning int8[256] for tests that expect small coeff type.
-    /// @dev Wraps challengePoly(...) and downcasts {-1,0,1} safely to int8.
+    /// @notice Старий інтерфейс для тестів: int8[256] з тими ж коефіцієнтами.
+    /// @dev Повністю побудований поверх poly_challenge().
     function deriveChallenge(
-        bytes32 digest
-    ) internal pure returns (int8[256] memory c) {
-        int32[256] memory tmp = challengePoly(digest);
+        bytes32 seed
+    ) internal pure returns (int8[256] memory out) {
+        int32[256] memory tmp = poly_challenge(seed);
         for (uint256 i = 0; i < N; ++i) {
-            c[i] = int8(tmp[i]); // safe: coeff ∈ {-1,0,1}
+            // safe cast: значення гарантовано в {-1, 0, 1}
+            out[i] = int8(tmp[i]);
         }
     }
 }

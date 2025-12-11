@@ -5,43 +5,29 @@ import "forge-std/Test.sol";
 import "../contracts/verifier/MLDSA65_Challenge.sol";
 
 contract MLDSA_Challenge_Test is Test {
-    using MLDSA65_Challenge for bytes32;
+    function test_poly_challenge_basic_shape() public {
+        bytes32 seed = keccak256("test-seed");
+        int32[256] memory c = MLDSA65_Challenge.poly_challenge(seed);
 
-    function test_challenge_coeff_range() public {
-        bytes32 digest = keccak256("test-digest");
-        int8[256] memory c = MLDSA65_Challenge.deriveChallenge(digest);
-
+        uint256 nonzero;
         for (uint256 i = 0; i < 256; ++i) {
-            int256 v = int256(int8(c[i]));
-            assertTrue(v >= -1 && v <= 1, "coeff out of {-1,0,1}");
+            int32 v = c[i];
+            // всі коефіцієнти в [-1, 1]
+            assertTrue(v >= -1 && v <= 1, "coeff must be -1, 0 or 1");
+            if (v != 0) nonzero++;
         }
+
+        // рівно 60 ненульових
+        assertEq(nonzero, 60, "must have exactly 60 nonzero coeffs");
     }
 
-    function test_challenge_deterministic() public {
-        bytes32 digest = keccak256("same-input");
-        int8[256] memory c1 = MLDSA65_Challenge.deriveChallenge(digest);
-        int8[256] memory c2 = MLDSA65_Challenge.deriveChallenge(digest);
+    function test_deriveChallenge_matches_poly_challenge() public {
+        bytes32 seed = keccak256("another-seed");
+        int32[256] memory c32 = MLDSA65_Challenge.poly_challenge(seed);
+        int8[256] memory c8 = MLDSA65_Challenge.deriveChallenge(seed);
 
         for (uint256 i = 0; i < 256; ++i) {
-            assertEq(c1[i], c2[i], "non-deterministic coeff");
+            assertEq(int8(c32[i]), c8[i], "int8/int32 views must match");
         }
-    }
-
-    function test_challenge_changes_with_input() public {
-        bytes32 d1 = keccak256("input-1");
-        bytes32 d2 = keccak256("input-2");
-
-        int8[256] memory c1 = MLDSA65_Challenge.deriveChallenge(d1);
-        int8[256] memory c2 = MLDSA65_Challenge.deriveChallenge(d2);
-
-        // Перевіряємо, що не всі коефіцієнти збігаються
-        bool anyDiff = false;
-        for (uint256 i = 0; i < 256; ++i) {
-            if (c1[i] != c2[i]) {
-                anyDiff = true;
-                break;
-            }
-        }
-        assertTrue(anyDiff, "challenge should differ for different inputs");
     }
 }

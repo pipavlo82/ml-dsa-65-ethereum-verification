@@ -583,6 +583,7 @@ contract MLDSA65_Verifier_v2 {
         unchecked {
             for (uint8 row = 0; row < MLDSA65_PolyVec.K; ++row) {
                 for (uint8 col = 0; col < MLDSA65_PolyVec.L; ++col) {
+                    // Отримаємо поліном a_{row,col}(x) через Keccak/FIPS-ExpandA.
                     int32[256] memory poly =
                         MLDSA65_ExpandA_KeccakFIPS204.expandA_poly(
                             rho,

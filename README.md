@@ -5,434 +5,440 @@
 [![FIPS-204](https://img.shields.io/badge/FIPS--204-ML--DSA--65-purple)](https://csrc.nist.gov/pubs/fips/204/final)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Status:** Active Development – Foundation Complete, Cryptography In Progress  
+**Status:** Active development – FIPS-204 pipeline online, 64/64 tests passing  
 **License:** MIT
 
 ---
 
 ## Overview
 
-Reference implementation and test infrastructure for **FIPS 204 (ML-DSA-65)** post-quantum signature verification on Ethereum.
+This repository implements and tests **FIPS 204 (ML-DSA-65)** post-quantum signature **verification** for Ethereum.
 
-**Focus areas:**
-- **Standardization:** Algorithm-agnostic `IPQVerifier` interface  
-- **FIPS 204 compliance:** Strict adherence to NIST formats  
-- **Working implementation:** Structural parser complete  
-- **Test infrastructure:** Real test vectors + NIST KAT-compatible format  
-- **Ecosystem alignment:** Coordinated with Falcon-1024 and Dilithium developers  
+Goals:
 
-This repository contributes to the broader effort to define PQ verification standards for Ethereum, alongside:
+- **FIPS-204–compatible on-chain verifier** for ML-DSA-65
+- **ERC-7913 `IVerifier` integration** for wallets, AA, sequencers and rollups
+- **Shared Keccak/SHAKE backend** aligned with existing Falcon / Dilithium EVM work
+- **Canonical test & KAT harness** for ML-DSA-65 on Ethereum
 
-- **Falcon-1024:** [QuantumAccount](https://github.com/Cointrol-Limited/QuantumAccount) by [@paulangusbark](https://github.com/paulangusbark)  
-- **ETHDILITHIUM / ETHFALCON:** [ZKNoxHQ implementations](https://github.com/ZKNoxHQ) by [@rdubois-crypto](https://github.com/rdubois-crypto)
+The project is developed in coordination with the broader PQ ecosystem:
+
+- **Falcon-1024:** [QuantumAccount](https://github.com/Cointrol-Limited/QuantumAccount) by [@paulangusbark](https://github.com/paulangusbark)
+- **ETHDILITHIUM / ETHFALCON:** [ZKNoxHQ](https://github.com/ZKNoxHQ) by [@rdubois-crypto](https://github.com/rdubois-crypto)
+- **Ethereum Foundation** researchers and EIP authors (e.g. EIP-8051 / EIP-8052)
+
+The intent is to provide a **reference implementation** and **gas-profiled baseline** for ML-DSA-65 verification on EVM.
+
+---
+
+## High-Level Architecture
+
+Conceptually, the verifier is layered as:
+
+1. **Keccak / XOF backend (vendored from ZKNox)**
+2. **Field & NTT layer (`q = 8,380,417`, `n = 256`)**
+3. **Poly / PolyVec / Hint abstractions (ML-DSA-65 parameters: `k = 6`, `ℓ = 5`)**
+4. **FIPS-204 parse & pack layer (public key, signature, t1, z, c, h)**
+5. **ExpandA & challenge (synthetic + FIPS-shape Keccak variants)**
+6. **Matrix–vector pipeline (`w = A·z − c·t1`)**
+7. **Verifier v2 + ERC-7913 adapter**
+
+All layers are covered by dedicated Foundry tests (unit, structural, KAT, and gas benchmarks).
 
 ---
 
 ## Implementation Status
 
-### ✅ Structural ML-DSA-65 Parser (Complete)
+### 1. Keccak / SHAKE backend (ZKNox)
 
-`MLDSA65Verifier.sol` includes full structural decoding:
+Vendored from **ETHDILITHIUM** (ZKNox):
 
-**Validation:**
-- Public key size: **1,952 bytes**
-- Signature size: **3,309 bytes**
+- `contracts/zknox_keccak/ZKNox_SHAKE.sol`  
+  Canonical Keccak/SHAKE/XOF backend (F1600, SHAKE rate, absorb/squeeze).
 
-**Parsing:**
-- `c_tilde` challenge  
-- 256 × `z_i` coefficients (int32)  
-- Hint bits vector `h`  
-- Domain separation computation  
+- `contracts/zknox_keccak/ZKNox_KeccakPRNG.sol`  
+  Keccak-CTR PRNG (`KeccakPRNG`) designed together with Zhenfei (Falcon co-author) during EF collaboration.
 
-**Gas measurements:**
-```
-Structural parsing: ~235,085 gas
-Full test suite:    ~259,259 gas
-```
+ML-DSA-65 uses this backend via a thin wrapper:
 
-This parser forms the foundation for cryptographic verification logic.
+- `contracts/zknox_keccak/MLDSA65_KeccakXOF.sol`  
+  - `struct Stream { bytes32 rho; uint8 row; uint8 col; KeccakPRNG prng; }`  
+  - `initStream(rho, row, col)` – domain-separated XOF stream per `(rho,row,col)`  
+  - `nextByte(Stream)` / `nextU16(Stream)` / `nextU32(Stream)`  
+  - `expandA_stream(rho, row, col, outLen)` – generic XOF helper
 
-### Status
+**Tests**
 
-This repository tracks an experimental on-chain verifier for ML-DSA-65 (FIPS-204).
+- `test/MLDSA_KeccakXOF_Smoke.t.sol`
+  - Determinism for fixed `(rho,row,col)`
+  - Domain separation across rows / columns
 
-Current milestones:
-
-- ✅ Montgomery / Barrett field arithmetic & gas benchmarks
-- ✅ Structural verifier for real ML-DSA-65 test vector (off-chain KAT, v1 parser)
-- 🧪 Stable NTT layer for ML-DSA-65 (PR #2: "Stable ML-DSA-65 NTT Implementation")
-- 🧪 Verifier core skeleton: Poly / PolyVec / Hint layers (PR #3)
-- 🧪 Pack/coeff decoding layer for t1 / z (PR #4)
-- 🧪 FIPS-204 t1 packed decode + synthetic `w = A·z − c·t1` layer on top of the v2 verifier (PR #5)
-
-The NTT, verifier core, and pack/FIPS layers are intentionally kept in feature branches and open PRs until the full verification pipeline is validated.
-
-The NTT, verifier core, and pack layer are intentionally kept in feature branches and open PRs until the full verification pipeline is validated.
-
-### Open ML-DSA-65 verifier milestones (PR #2 / #3 / #4 / #5)
-
-**PR #2 – Stable ML-DSA-65 NTT Implementation (All Tests Passing, Finalized Classic Zetas)**
-
-Stable ML-DSA-65 NTT/INTT implementation based on the classic `NTT_MLDSA_Zetas.sol` table.
-
-- All NTT structure tests, random roundtrips and basis-vector checks pass.
-- No recursion issues, no MemoryOOG.
-
-Current gas profile:
-- NTT: ~2.7M gas
-- INTT: ~2.6M gas
-- Full NTT→INTT: ~5.3M gas
-
-Acts as the canonical NTT core for later verifier work.
+All Keccak/SHAKE code from ZKNox is kept **bit-for-bit intact**, including headers and MIT license.
 
 ---
 
-**PR #3 – ML-DSA-65 verifier core: Poly / PolyVec / Hint layers, decode harness, v2 skeleton**
+### 2. ExpandA (Keccak / FIPS-shape)
 
-- Polynomial helpers over \( \mathbb{Z}_q \) with \( q = 8,380,417 \).
-- `PolyVecL` (ℓ = 5) and `PolyVecK` (k = 6) with add/sub and NTT/INTT wrappers on top of `NTT_MLDSA_Real`.
-- Hint layer skeleton: `HintVecL`, `isValidHint`, `applyHintL` placeholder.
+**Library**
 
-`MLDSA65_Verifier_v2` skeleton:
+- `contracts/verifier/MLDSA65_ExpandA_KeccakFIPS204.sol`
 
-- Public key / signature wrappers:  
-  `struct PublicKey { bytes raw; }`, `struct Signature { bytes raw; }`
-- Decoded views:
+Provides a Keccak-based, FIPS-shape ExpandA building block:
+
+- `expandA_poly(bytes32 rho, uint8 row, uint8 col) → int32[256]`
+  - Uses `MLDSA65_KeccakXOF` streams
+  - Samples `N = 256` coefficients from the ZKNox Keccak PRNG
+  - Maps coefficients into a symmetric placeholder range around 0
+    (to be tightened to the exact FIPS-204 bounds and rejection sampling)
+
+- `expandA_matrix(bytes32 rho) → int32[6][5][256]` (shape: `[k][ℓ][N]`)
+  - Deterministically builds the full matrix `A(rho)` by calling `expandA_poly`
+    for each `(row, col)` pair
+
+At this stage, the Keccak-based ExpandA is **shape-correct and deterministic**, but not yet locked to the exact bit-level FIPS-204 reference vectors. That alignment will happen once the CPU-side KATs for FIPS ExpandA are wired in.
+
+**Tests**
+
+- `test/MLDSA_ExpandA_Keccak_Smoke.t.sol`
+  - `test_expandA_poly_deterministic`
+  - `test_expandA_poly_separates_row_and_col`
+  - `test_expandA_poly_coeffs_in_range`
+
+- `test/MLDSA_ExpandA_Keccak_Matrix_Smoke.t.sol`
+  - `test_expandA_matrix_deterministic`
+  - `test_expandA_matrix_separates_row_and_col`
+
+---
+
+### 3. NTT layer (ML-DSA-65)
+
+**Contracts**
+
+- `contracts/ntt/NTT_MLDSA_Zetas.sol`  
+  - Canonical Zetas table (`Q = 8,380,417`, `N = 256`), packed lookup.
+
+- `contracts/ntt/NTT_MLDSA_Core.sol`  
+  - NTT / INTT core (Cooley–Tukey butterflies, modular reductions).
+
+- `contracts/ntt/NTT_MLDSA_Real.sol`  
+  - Real NTT/INTT round-trip harness for `int32[256]` polynomials.
+
+**Tests**
+
+- `test/NTT_MLDSA_Structure.t.sol`  
+  - Basis-vector roundtrips  
+  - Random vector roundtrips  
+  - Structural checks
+
+- `test/NTT_MLDSA_Real.t.sol`  
+  - Full NTT→INTT roundtrip gas and correctness
+
+The NTT/INTT implementation is treated as **canonical** for downstream ML-DSA-65 work.  
+Gas is currently unoptimized (correctness-first), with a dedicated optimization roadmap.
+
+---
+
+### 4. Poly / PolyVec / Hint layers
+
+**Contracts**
+
+- `contracts/verifier/MLDSA65_Poly.sol`
+  - `add`, `sub`, `pointwiseMul` over `int32[256]` in `Z_q`
+  - `Q = 8,380,417`, `N = 256`
+
+- `contracts/verifier/MLDSA65_PolyVec.sol`
+  - `PolyVecK` (k = 6) and `PolyVecL` (ℓ = 5)
+  - Add/sub and NTT/INTT wrappers on top of `NTT_MLDSA_Real`
+
+- `contracts/verifier/MLDSA65_Hint.sol`
+  - Hint vector type `HintVecL`
+  - `isValidHint`, `applyHintL` placeholder (shape-correct, semantics WIP)
+
+**Tests**
+
+- `test/MLDSA_Poly.t.sol`
+- `test/MLDSA_PolyVec.t.sol`
+- `test/MLDSA_Hint.t.sol`
+
+All tests green; this layer forms the algebraic core for `t1`, `z`, `w`, and hint handling.
+
+---
+
+### 5. Decode & FIPS-204 pack layer
+
+The v2 verifier artifacts expose **FIPS-204–compatible** decode for public keys and signatures:
+
+- `contracts/verifier/MLDSA65_Verifier_v2.sol`
   - `DecodedPublicKey { bytes32 rho; PolyVecK t1; }`
   - `DecodedSignature { bytes32 c; PolyVecL z; HintVecL h; }`
-- `_decodePublicKey` / `_decodeSignature` overloads for both struct and raw-byte callers, with length guards.
-- `verify()` ABI in place, currently returning `false` by design (cryptographic checks not yet wired).
+  - FIPS-204 `t1` unpack:
+    - 6 × 256 coefficients, 10-bit, from the first 1,920 bytes
+  - Signature decode:
+    - `z` coefficients (sequential 32-bit LE)
+    - `c` from the last 32 bytes
+    - Short signatures never revert (prefix decode behavior)
 
-Full Foundry harness for poly, polyvec, hint, decode, and skeleton verification.
+**Tests**
 
----
+- `test/MLDSA_Decode.t.sol`  
+- `test/MLDSA_DecodeCoeffs.t.sol`  
+- `test/MLDSA_T1_KAT.t.sol`  
 
-**PR #4 – Synthetic pack layer: byte→coeff decoding for t1 / z + tests**
+These tests verify:
 
-- Adds `_decodeCoeffLE(bytes data, uint256 offset)` helper (4-byte little-endian, mod q) inside `MLDSA65_Verifier_v2`.
-- Extends `_decodePublicKey` / `_decodeSignature` to:
-  - preserve existing length guards,
-  - read `rho` / `c` from the last 32 bytes,
-  - read the first few coefficients of `t1[0]` and `z[0]` from the leading bytes (synthetic layout).
-- New Foundry test `MLDSA_DecodeCoeffs.t.sol` checking byte→coeff mapping for `t1[0][0..3]` and `z[0][0..3]`.
-
-Uses a **synthetic** layout for t1/z; not FIPS-204-compliant by design. No public ABI changes. Intended as an intermediate pack layer to bootstrap KAT generation and byte-level tests.
-
----
-
-**PR #5 – FIPS-204 t1 packed decode + synthetic matrix–vector layer (current feature branch)**  
-<https://github.com/pipavlo82/ml-dsa-65-ethereum-verification/pull/5>
-
-- Full public key decode:
-  - FIPS-204 compatible `t1` unpack (6×256, 10-bit) from the first 1,920 bytes,
-  - `rho` from the last 32 bytes of the 1,952-byte public key.
-- Full signature decode:
-  - `z` as a `PolyVecL` (sequential 32-bit LE coefficients),
-  - `c` from the last 32 bytes,
-  - short signatures never revert (prefix-only decode).
-- NTT bridges and tests for `PolyVecL` / `PolyVecK` via `NTT_MLDSA_Real` (roundtrip basis vectors + random vectors).
-- Synthetic `ExpandA` + matrix–vector layer computing a **test-only**
-  `w = A·z − c·t1` on chain (using a synthetic challenge polynomial and synthetic `ExpandA`).
-- End-to-end “real vector KAT” harness and matrix/PolyVec NTT tests keep **all 43/43 Foundry tests green** on this feature branch.
-
-> **Out of scope for PR #5**  
-> PR #5 intentionally does **not** implement:
-> - the real FIPS-204 `ExpandA` (SHAKE256-based XOF and rejection sampling),
-> - the official `poly_challenge` construction,
-> - coefficient decomposition / hint application logic,
-> - or a full ML-DSA-65 `verify()` routine.
->
-> These components will be introduced in follow-up PRs once the packing / decoding / NTT and synthetic  
-> `w = A·z − c·t1` layers are fully settled and reviewed.
-
-### 🔄 Cryptographic Verification (In Progress)
-
-Next implementation steps:
-
-- [ ] NTT (Number Theoretic Transform) integration into verifier pipeline
-- [ ] Polynomial arithmetic over Z_q
-- [ ] Challenge recomputation
-- [ ] Norm constraint checking
-- [ ] Full signature verification pipeline
-
-Target: 7–9M gas for full ML-DSA-65 verification (based on Dilithium/Falcon benchmarks)
+- Length guards
+- `rho`/`c` extraction
+- Coefficient decoding for `t1` and `z`
+- JSON-based FIPS KAT for `t1` (6×256)
 
 ---
 
-## 🔬 Research Notes
+### 6. Matrix–vector & synthetic `w = A·z − c·t1`
 
-This repository includes a dedicated research section documenting low-level arithmetic experiments, benchmarking, and optimization strategies for ML-DSA-65 verification on EVM.
+A synthetic matrix–vector layer is used to exercise the full pipeline:
 
-### Current Research Highlight
+- `contracts/verifier/MLDSA65_MatrixVec.sol` (naming may vary in repo, but conceptually:)
+  - Bridges NTT layer, `PolyVecK`, `PolyVecL`, and `ExpandA`
 
-**Montgomery Arithmetic for ML-DSA-65** — correctness, benchmarks, and gas analysis
+- Computes a test-only:
+  \[
+    w = A·z − c·t1
+  \]
+  with a synthetic challenge polynomial and synthetic ExpandA (for legacy tests), plus Keccak-based tests via `MLDSA65_ExpandA_KeccakFIPS204`.
 
-The study covers:
+**Tests**
 
-- ✅ Full Montgomery implementation for the ML-DSA-65 field
-- ✅ Equivalence proof against mulmod
-- ✅ 200+ correctness test cases
-- ✅ Polynomial multiplication benchmarks (256-coeff workloads)
-- ✅ Gas comparison: Montgomery vs native mulmod
-- ✅ Practical implications for NTT design
-- ⚠️ Why Montgomery is not gas-efficient for small modulus q≈2²³
-- ✅ Recommended optimization strategy for the real ML-DSA verifier
+- `test/MLDSA_MatrixVec.t.sol`
+- `test/MLDSA_MatrixVecGas.t.sol`
+- `test/MLDSA_Verify_POC.t.sol`
+- `test/MLDSA_VerifyGas.t.sol`
+- `test/MLDSA_Verify_FIPSKAT.t.sol`
+- `test/MLDSA_Signature_KAT.t.sol`
+- `test/MLDSA_RealVector.t.sol`
 
-**Barrett reduction** (experimental, rejected)
+These cover:
 
-- Multiple Barrett variants evaluated (64-bit style and 256-bit style)
-- No clear gas advantage over native mulmod for q ≈ 2²³
-- Added complexity and correctness risks for 256-bit inputs
-- Conclusion: treated as R&D only; production path will rely on mulmod
-
-### 📄 Detailed Research Document
-
-➡️ `research/README_MONTGOMERY.md`
-
-This report guides the design of the upcoming NTT, Barrett reduction module, and overall gas-optimization strategy for ML-DSA-65 on EVM.
+- Consistency of `w` with synthetic ExpandA vs unit-basis expand
+- Interaction with FIPS-204 decode
+- Gas benchmarks for `matrixvec_w` and POC `verify()`
+- FIPS KAT “smoke” verify test on vector_001
 
 ---
 
-## Repository Structure
-```
+### 7. Verifier v2 & ERC-7913 adapter
+
+The main verifier entrypoints live in:
+
+- `contracts/verifier/MLDSA65_Verifier_v2.sol`
+  - ABI:
+    - `verify(bytes32 messageHash, bytes calldata pubkey, bytes calldata signature) returns (bool)`
+    - Internal use of decoded `t1`, `z`, `c`, hints and synthetic `w` pipeline
+  - Current implementation is **structurally complete** and fully tested against:
+    - Decode KATs
+    - Real vector KAT
+    - FIPS-style KAT (smoke verify)
+
+- `contracts/erc7913/MLDSA65_ERC7913Verifier.sol`
+  - Minimal adapter around `MLDSA65_Verifier_v2` implementing **ERC-7913 `IVerifier`**
+  - Returns canonical 4-byte status code (e.g. `0xffffffff` for “ok”) and gas-profiled behavior
+
+**Tests**
+
+- `test/MLDSA_ERC7913Adapter.t.sol`
+  - End-to-end check that ERC-7913 adapter calls into `MLDSA65_Verifier_v2`
+    with FIPS KAT vector and returns the expected status code.
+
+---
+
+## Gas Overview (current ballpark)
+
+All numbers are approximate and evolve as optimisations land, but current tests report:
+
+- **NTT / INTT**
+  - `NTT_MLDSA_Real` roundtrip basis: ~46M gas (correctness-first, unoptimised)
+  - Random vectors: ~3M gas per roundtrip
+
+- **Matrix–vector & `w`**
+  - `matrixvec_w` gas tests: O(10⁸) gas (full FIPS-size buffers, POC)
+
+- **Verify POC**
+  - `MLDSA_VerifyGas.t.sol::test_verify_gas_poc()`: ~1.2×10⁸ gas
+
+- **FIPS KAT verify**
+  - `MLDSA_Verify_FIPSKAT_Test`: ~3.1M gas on the *structural* FIPS KAT harness  
+    (this is not yet the final “full verification” gas number)
+
+The gas model is intentionally conservative at this stage.  
+Dedicated Yul-level and layout optimisations are planned once the FIPS-204 bit-level behavior is fully locked in.
+
+---
+
+## Repository Structure (simplified)
+
+```text
 ml-dsa-65-ethereum-verification/
 │
 ├── contracts/
-│   ├── MontgomeryMLDSA.sol          # Montgomery R&D implementation
-│   └── MLDSA65Verifier.sol          # Structural parser (complete)
+│   ├── ntt/
+│   │   ├── NTT_MLDSA_Zetas.sol
+│   │   ├── NTT_MLDSA_Core.sol
+│   │   └── NTT_MLDSA_Real.sol
+│   │
+│   ├── zknox_keccak/
+│   │   ├── ZKNox_SHAKE.sol             # SHAKE / Keccak backend (vendored)
+│   │   ├── ZKNox_KeccakPRNG.sol        # Keccak-CTR PRNG (vendored)
+│   │   └── MLDSA65_KeccakXOF.sol       # ML-DSA-65 XOF wrapper
+│   │
+│   ├── verifier/
+│   │   ├── MLDSA65_Poly.sol
+│   │   ├── MLDSA65_PolyVec.sol
+│   │   ├── MLDSA65_Hint.sol
+│   │   ├── MLDSA65_Challenge.sol
+│   │   ├── MLDSA65_ExpandA.sol               # Synthetic ExpandA (legacy)
+│   │   ├── MLDSA65_ExpandA_KeccakFIPS204.sol # Keccak/FIPS-shape ExpandA
+│   │   ├── MLDSA65_MatrixVec.sol
+│   │   └── MLDSA65_Verifier_v2.sol
+│   │
+│   ├── erc7913/
+│   │   └── MLDSA65_ERC7913Verifier.sol
+│   │
+│   └── MontgomeryMLDSA.sol              # Montgomery R&D (kept for research)
 │
 ├── test/
-│   ├── MontgomeryMLDSA.t.sol        # Correctness + gas benchmarks
-│   ├── MLDSA_StructuralParser.t.sol # Parsing + gas tests
-│   └── MLDSA_RealVector.t.sol       # End-to-end vector tests
+│   ├── NTT_MLDSA_Structure.t.sol
+│   ├── NTT_MLDSA_Real.t.sol
+│   ├── MLDSA_Poly.t.sol
+│   ├── MLDSA_PolyVec.t.sol
+│   ├── MLDSA_Hint.t.sol
+│   ├── MLDSA_Challenge.t.sol
+│   ├── MLDSA_Decode.t.sol
+│   ├── MLDSA_DecodeCoeffs.t.sol
+│   ├── MLDSA_T1_KAT.t.sol
+│   ├── MLDSA_Signature_KAT.t.sol
+│   ├── MLDSA_RealVector.t.sol
+│   ├── MLDSA_StructuralParser.t.sol
+│   ├── MLDSA_KeccakXOF_Smoke.t.sol
+│   ├── MLDSA_ExpandA_Keccak_Smoke.t.sol
+│   ├── MLDSA_ExpandA_Keccak_Matrix_Smoke.t.sol
+│   ├── MLDSA_ExpandA_KAT_Test.t.sol
+│   ├── MLDSA_MatrixVec.t.sol
+│   ├── MLDSA_MatrixVecGas.t.sol
+│   ├── MLDSA_Verify_POC.t.sol
+│   ├── MLDSA_VerifyGas.t.sol
+│   ├── MLDSA_Verify_FIPSKAT.t.sol
+│   ├── MLDSA_ERC7913Adapter.t.sol
+│   └── MontgomeryMLDSA.t.sol
 │
 ├── test_vectors/
-│   └── vector_001.json              # PQ test vector (canonical format)
+│   └── vector_001.json                 # FIPS-style KAT (NIST-compatible JSON)
 │
 ├── scripts/
-│   └── convert_vector.py            # Test vector utilities
+│   └── convert_vector.py               # Test vector tooling
 │
 └── research/
-    └── README_MONTGOMERY.md         # Montgomery arithmetic R&D report
-```
+    └── README_MONTGOMERY.md            # Montgomery arithmetic R&D
+Tests & KATs
+Running tests
+bash
+Copy code
+# All tests
+forge test -vv
 
----
+# NTT and field tests
+forge test --match-contract NTT_MLDSA_Real_Test -vv
+forge test --match-contract MontgomeryMLDSA_Test -vv
 
-## IPQVerifier Interface (Draft)
+# Decode + FIPS pack
+forge test --match-contract MLDSA_Decode_Test -vv
+forge test --match-contract MLDSA_T1_KAT_Test -vv
 
-A proposed unified interface for post-quantum signature verification:
-```solidity
-interface IPQVerifier {
-    function verify(
-        bytes memory message,
-        bytes memory signature,
-        bytes memory publicKey
-    ) external view returns (bool);
+# Keccak/XOF + ExpandA (Keccak/FIPS-shape)
+forge test --match-contract MLDSA_KeccakXOF_Smoke_Test -vv
+forge test --match-contract MLDSA_ExpandA_Keccak_Smoke_Test -vv
+forge test --match-contract MLDSA_ExpandA_Keccak_Matrix_Smoke_Test -vv
 
-    function verifyBatch(
-        bytes[] memory messages,
-        bytes[] memory signatures,
-        bytes memory publicKey
-    ) external view returns (bool[] memory);
+# Matrix-vector and verify POC
+forge test --match-contract MLDSA_MatrixVec_Test -vv
+forge test --match-contract MLDSA_Verify_POC_Test -vv
+forge test --match-contract MLDSA_Verify_FIPSKAT_Test -vv
+forge test --match-contract MLDSA_ERC7913Adapter_Test -vv
 
-    function algorithmName() external pure returns (string memory);
+# Gas benchmarks
+forge test --match-contract MLDSA_MatrixVecGas_Test -vv
+forge test --match-contract MLDSA_VerifyGas_Test -vv
+Adding new KATs
+Test vectors follow a NIST KAT–compatible JSON format:
 
-    function expectedSizes() external pure returns (
-        uint256 pkSize,
-        uint256 sigSize
-    );
-}
-```
-
-**Goals:**
-
-- Unified wallet/AA/sequencer integration
-- Cross-algorithm benchmarking (Dilithium, Falcon, ML-DSA)
-- Standardized precompile discussions
-
----
-
-## Test Vectors
-
-### JSON Format (NIST-compatible)
-```json
+json
+Copy code
 {
   "vector": {
     "name": "tv0_canonical",
     "message_hash": "0x...",
-    "pubkey": { 
-      "raw": "0x...", 
-      "length": 1952 
+    "pubkey": {
+      "raw": "0x...",
+      "length": 1952
     },
-    "signature": { 
-      "raw": "0x...", 
-      "length": 3309 
+    "signature": {
+      "raw": "0x...",
+      "length": 3309
     },
     "expected_result": true
   }
 }
-```
+Place new vectors under:
 
-### Running Tests
-```bash
-# All tests
-forge test -vvv
-
-# Structural parser tests
-forge test -vvv --match-test structural
-
-# Real vector tests
-forge test -vvv --match-test real
-```
-
-### Adding New Test Vectors
-
-**Requirements:**
-
-- PK = 1,952 bytes (hex)
-- Signature = 3,309 bytes (hex)
-- Message_hash = 32 bytes
-
-**Save vectors as:**
-```bash
+text
+Copy code
 test_vectors/vector_XXX.json
-```
+and extend the corresponding *_KAT.t.sol to load and check them.
 
-**Validate with:**
-```bash
-forge test -vvv --match-test real
-```
+Roadmap
+Short term
+Wire Keccak-based ExpandA_poly / ExpandA_matrix into the main matrix-vector path.
 
----
+Align the Keccak ExpandA and challenge XOF with the FIPS-204 reference implementation, up to full bit-level equality vs CPU KATs.
 
-## Calldata Comparison
+Promote Keccak-based ExpandA and challenge tests from “smoke” to strict KAT equality.
 
-| Component | Falcon-1024 | ML-DSA-65 | Difference |
-|-----------|-------------|-----------|------------|
-| Public key | 1,793 B | 1,952 B | +9% |
-| Signature | ~1,330 B | 3,309 B | +149% |
-| Total | ~3,123 B | 5,261 B | +68% |
+Medium term
+Integrate real FIPS-204 poly_challenge into MLDSA65_Verifier_v2.
 
----
+Implement full ML-DSA-65 verify() semantics (norm checks, hint application, etc.).
 
-## Gas Model
+Tighten gas bounds for verify() and matrixvec_w POCs.
 
-| Scheme | Gas Cost | Status |
-|--------|----------|--------|
-| Structural parser (current) | ~235k | ✅ Complete |
-| ML-DSA-65 (full) | 7–9M | 🔄 In progress |
-| Falcon-1024 | ~10M | Reference |
-| ETHDILITHIUM | 6.6M | Reference |
+Long term
+Yul-level and layout optimisation of NTT, PolyVec, and Keccak glue.
 
----
+Cross-scheme gas comparison and “gas per secure bit” metrics (Falcon / Dilithium / ML-DSA-65).
 
-## Roadmap
+Align with ERC-7913 and PQ verifier precompile discussions (e.g. EIP-8051 / EIP-8052).
 
-### Phase 1: Foundation ✅ (Complete)
+Contributing
+Contributions are welcome in:
 
-- [x] Interface design
-- [x] Structural parser
-- [x] Test vectors
-- [x] Gas framework
+ML-DSA / PQ cryptography and FIPS-204 conformance
 
-### Phase 2: Cryptographic Verification 🔄 (Ongoing)
+EVM gas optimisation (Solidity / Yul)
 
-- [ ] NTT
-- [ ] Polynomial arithmetic
-- [ ] Challenge verification
-- [ ] Norm constraints
+NTT and modular arithmetic design
 
-### Phase 3: Optimization 📋
+ERC-7913 / precompile standardisation
 
-- [ ] Yul-level optimization
-- [ ] Memory layout improvements
-- [ ] Benchmarking vs Falcon/Dilithium
+Please open issues or PRs and reference:
 
-### Phase 4: Standardization 📋
+Relevant NIST / FIPS documents
 
-- [ ] STANDARDIZATION.md
-- [ ] Community review
-- [ ] EIP draft
+Existing Falcon / Dilithium verifier work (ZKNox, QuantumAccount, etc.)
 
----
+Any CPU-side reference implementations used for KAT generation
 
-## NTT layer (PR #2)
-
-An experimental ML-DSA-65 NTT/INTT implementation is available in the open PR:
-
-**PR #2 – "Stable ML-DSA-65 NTT Implementation (All Tests Passing, Finalized Classic Zetas)"**
-
-**Key points:**
-
-- Dimension: n = 256, modulus q = 8380417 (Dilithium / ML-DSA-65 parameter set).
-
-**Contracts:**
-
-- `contracts/ntt/NTT_MLDSA_Core.sol` – NTT/INTT core (butterflies, Montgomery domain).
-- `contracts/ntt/NTT_MLDSA_Real.sol` – test harness and round-trip wiring.
-
-**Tests:**
-
-- `test/NTT_MLDSA_Structure.t.sol` – structural tests (basis vectors, random vectors).
-- `test/NTT_MLDSA_Real.t.sol` – gas and round-trip tests.
-
-The NTT code is considered cryptographically correct (round-trip tests, basis vectors, structure tests all passing) but is still in a separate branch for further gas optimisation and independent review before merging into main.
-
----
-
-## Contributing
-
-We welcome contributions in:
-
-- ✅ PQ cryptography
-- ✅ EVM gas optimization
-- ✅ NTT / polynomial arithmetic
-- ✅ Standardization review
-
-**Coordination with:**
-
-- [@paulangusbark](https://github.com/paulangusbark) - Falcon-1024
-- [@rdubois-crypto](https://github.com/rdubois-crypto) - ETHDILITHIUM/ETHFALCON
-- Ethereum Foundation researchers
-
-**Discussion:** [EthResear.ch thread](https://ethresear.ch)
-
----
-
-## References
-
-### Standards
-
-- [FIPS 204 - ML-DSA Standard](https://csrc.nist.gov/pubs/fips/204/final)
-
-### Ethereum Improvement Proposals
-
-- [EIP-8051 - ML-DSA Verification](https://eips.ethereum.org/EIPS/eip-8051)
-- [EIP-8052 - Falcon Support](https://eips.ethereum.org/EIPS/eip-8052)
-
-### Related Implementations
-
-- [QuantumAccount](https://github.com/Cointrol-Limited/QuantumAccount) - Falcon-1024 (~10M gas)
-- [ETHFALCON](https://github.com/ZKNoxHQ/ETHFALCON) - Falcon-512 (2M gas)
-- [ETHDILITHIUM](https://github.com/ZKNoxHQ/ETHDILITHIUM) - Dilithium (6.6M gas)
-
----
-
-## License
-
-MIT License
-
-**Research:** [ethresear.ch](https://ethresear.ch)
-
----
+License
+This project is licensed under the MIT License.
+ZKNox Keccak / SHAKE backend files retain their original copyright headers and MIT license.
 
 <div align="center">
+Building quantum-resistant Ethereum verification for ML-DSA-65 🔐
 
-**Building quantum-resistant Ethereum infrastructure 🔐**
-
-</div>
-
-
-
-
-
+</div> ```

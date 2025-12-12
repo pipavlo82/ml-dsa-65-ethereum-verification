@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {NTT_MLDSA_Real} from "../ntt/NTT_MLDSA_Real.sol";
-import {MLDSA65_ExpandA} from "./MLDSA65_ExpandA.sol";
+import {MLDSA65_ExpandA_Synthetic_FIPSShape} from "./MLDSA65_ExpandA_Synthetic_FIPSShape.sol";
 import {MLDSA65_Challenge} from "./MLDSA65_Challenge.sol";
 
 //
@@ -256,13 +256,9 @@ contract MLDSA65_Verifier_v2 {
     int32 internal constant Q = 8380417;
     // For ML-DSA-65 (Dilithium3-level) γ₁ = 2¹⁹.
     int32 internal constant GAMMA1 = int32(1 << 19);
-    // β parameter from Dilithium3 / ML-DSA-65 for z-norm bound.
-    int32 internal constant BETA = 78;
-    // Infinity-norm bound for z: |z_i| < γ₁ − β.
-    int32 internal constant Z_NORM_BOUND = GAMMA1 - BETA;
-
-    // Upper bound on total number of non-zero hint entries (ω for ML-DSA-65/Dilithium3).
-    uint256 internal constant OMEGA_H = 55;
+    // Temporary z-norm bound used in verify(): |z_i| < γ₁.
+    // TODO: if needed, tighten to (γ₁ - β) once β is wired in.
+    int32 internal constant Z_NORM_BOUND = GAMMA1 - 1;
 
     // ============================
     // Public key layout constants
@@ -296,10 +292,9 @@ contract MLDSA65_Verifier_v2 {
 
     /// @notice Main verification entrypoint with basic structural checks.
     /// @dev This is NOT yet a full FIPS-204 verifier. Currently performs:
-    ///      - Structural validation (lengths, c != 0, z norm via γ₁−β, hint weight bound)
+    ///      - Structural validation (lengths, c != 0, loose z norm)
     ///      - Computes w = A·z - c·t1 using synthetic ExpandA and challenge
-    ///      - Enforces consistency of challenge seeds via FIPS-style polynomial
-    ///      TODO: Add FIPS-204 compliant decomposition, hints, and final challenge comparison over (μ, w₁).
+    ///      TODO: Add FIPS-204 compliant decomposition, hints, and final challenge comparison.
     function verify(
         PublicKey memory pk,
         Signature memory sig,
@@ -318,22 +313,17 @@ contract MLDSA65_Verifier_v2 {
             return false;
         }
 
-        // 2) z must have coefficients within γ₁ − β bound.
-        //    This enforces |z_i| < γ₁ − β for all coefficients, як у Dilithium3.
-        if (!_checkZNormBound(dsig)) {
+        // 2) z must have coefficients within γ₁ bound.
+        //    This enforces |z_i| < γ₁ for all coefficients.
+        if (!_checkZNormGamma1Bound(dsig)) {
             return false;
         }
 
-        // 3) Hint must respect weight bound ω (total non-zero entries ≤ OMEGA_H).
-        if (!_checkHintWeight(dsig)) {
-            return false;
-        }
-
-        // 4) Compute w = A*z - c*t1 (synthetic, uses keccak-based challenge and synthetic ExpandA).
+        // 3) Compute w = A*z - c*t1 (synthetic, uses keccak-based challenge and synthetic ExpandA).
         MLDSA65_PolyVec.PolyVecK memory w = _compute_w(dpk, dsig);
         w; // w поки що не використовуємо для перевірки декомпозиції
 
-        // 5) FIPS-style challenge consistency:
+        // 4) FIPS-style challenge consistency:
         //    поліном з seed, що лежить у сигнатурі (dsig.c),
         //    має збігатися з поліном із message_digest.
         int32[256] memory c_from_sig = MLDSA65_Challenge.poly_challenge(dsig.c);
@@ -343,7 +333,7 @@ contract MLDSA65_Verifier_v2 {
             return false;
         }
 
-        // Усе пройшло: структура ок, норми ок, hint-вага ок, challenge seed узгоджений.
+        // Усе пройшло: структура ок, норми ок, challenge seed узгоджений.
         return true;
     }
 
@@ -555,13 +545,14 @@ contract MLDSA65_Verifier_v2 {
     // Synthetic ExpandA(rho) — still test-only A, NOT real FIPS-204 ExpandA
     //
 
-    /// @notice Synthetic A[row][col] poly in the time domain via MLDSA65_ExpandA.
+    /// @notice Synthetic A[row][col] poly in the time domain via MLDSA65_ExpandA_Synthetic_FIPSShape.
+    /// @dev Використовує FIPS-shaped synthetic ExpandA з окремим KAT.
     function _expandA_poly(
         bytes32 rho,
         uint8 row,
         uint8 col
     ) internal pure returns (int32[256] memory a) {
-        a = MLDSA65_ExpandA.expandA_poly(rho, row, col);
+        a = MLDSA65_ExpandA_Synthetic_FIPSShape.expandA_poly(rho, row, col);
     }
 
     /// @notice Synthetic A[row][col] poly in NTT domain.
@@ -579,11 +570,12 @@ contract MLDSA65_Verifier_v2 {
     }
 
     //
-    // Temporary norm & hint checks (FIPS-shaped)
+    // Temporary norm check for z (POC-level)
     //
 
-    /// @notice Bound check on z coefficients using FIPS-style ||z||∞ < γ₁ − β.
-    function _checkZNormBound(
+    /// @notice Bound check on z coefficients using γ₁ ≈ 2¹⁹.
+    /// @dev Placeholder for the final FIPS-204 ||z||∞ < γ₁ - β check.
+    function _checkZNormGamma1Bound(
         DecodedSignature memory dsig
     ) internal pure returns (bool) {
         int32 maxAbs = Z_NORM_BOUND;
@@ -593,30 +585,6 @@ contract MLDSA65_Verifier_v2 {
                 int32 v = dsig.z.polys[j][i];
                 if (v > maxAbs || v < -maxAbs) {
                     return false;
-                }
-            }
-        }
-
-        return true;
-    }
-
-    /// @notice FIPS-shaped check on total number of non-zero hint entries (ω bound).
-    /// @dev Counts all entries where h.flags[j][i] != 0 and enforces ≤ OMEGA_H.
-    function _checkHintWeight(
-        DecodedSignature memory dsig
-    ) internal pure returns (bool) {
-        uint256 count = 0;
-
-        for (uint256 j = 0; j < MLDSA65_PolyVec.L; ++j) {
-            for (uint256 i = 0; i < MLDSA65_PolyVec.N; ++i) {
-                int8 v = dsig.h.flags[j][i];
-                if (v != 0) {
-                    unchecked {
-                        ++count;
-                        if (count > OMEGA_H) {
-                            return false;
-                        }
-                    }
                 }
             }
         }

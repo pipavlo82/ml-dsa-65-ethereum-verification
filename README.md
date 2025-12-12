@@ -3,7 +3,7 @@
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.20-blue)](https://soliditylang.org/)
 [![Foundry](https://img.shields.io/badge/Foundry-tested-green)](https://getfoundry.sh/)
 [![FIPS-204](https://img.shields.io/badge/FIPS--204-ML--DSA--65-purple)](https://csrc.nist.gov/pubs/fips/204/final)
-[![Tests: 64/64](https://img.shields.io/badge/Tests-64%2F64%20passing-brightgreen)]()
+[![Tests: 65/65](https://img.shields.io/badge/Tests-65%2F65%20passing-brightgreen)]()
 [![Gas: 120M (synthetic)](https://img.shields.io/badge/Gas-120M%20synthetic-orange)]()
 [![Gas: 141M (FIPS-204 est.)](https://img.shields.io/badge/Gas-141M%20FIPS--204%20est.-red)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)

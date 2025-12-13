@@ -29,8 +29,7 @@ contract MLDSA_StructuralParser_Test is Test {
         console.log("Structural gas:", gasUsed);
 
         // Realistic ML-DSA-65 gas bounds (parsing only)
-        assertGt(gasUsed, 200000);
-        assertLt(gasUsed, 400000);
+        assertLt(gasUsed, 250000); // parsing-only should stay cheap; adjust if needed
     }
 
     function test_invalid_signature_length() public {

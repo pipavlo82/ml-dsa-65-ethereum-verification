@@ -22,13 +22,7 @@ library MLDSA65_ExpandA_Synthetic_FIPSShape {
     /// @notice Генерує повну матрицю A(rho) у time-domain.
     /// @return A Масив довжини L=5, де кожен елемент — PolyVecK (K поліно).
     ///         Індексування: A[rowL].polys[colK] відповідає A[rowL][colK].
-    function expandA(
-        bytes32 rho
-    )
-        internal
-        pure
-        returns (MLDSA65_PolyVec.PolyVecK[5] memory A)
-    {
+    function expandA(bytes32 rho) internal pure returns (MLDSA65_PolyVec.PolyVecK[5] memory A) {
         // Беремо лише молодший байт rho як простий seed
         uint8 r0 = uint8(uint256(rho) & 0xFF);
 
@@ -56,11 +50,7 @@ library MLDSA65_ExpandA_Synthetic_FIPSShape {
     ///      Щоб уникнути побудови fullA у пам’яті, безпосередньо
     ///      використовуємо відповідну формулу з переставленими row/col:
     ///        rowL = colL, colK = rowK.
-    function expandA_poly(
-        bytes32 rho,
-        uint8 row,
-        uint8 col
-    ) internal pure returns (int32[256] memory a) {
+    function expandA_poly(bytes32 rho, uint8 row, uint8 col) internal pure returns (int32[256] memory a) {
         // Перевірка меж у «K×L»-семантиці викликів
         require(row < MLDSA65_PolyVec.K, "expandA_poly: row out of range");
         require(col < MLDSA65_PolyVec.L, "expandA_poly: col out of range");

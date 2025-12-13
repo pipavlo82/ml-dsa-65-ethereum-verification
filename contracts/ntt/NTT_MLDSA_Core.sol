@@ -12,21 +12,13 @@ library NTT_MLDSA_Core {
     uint256 internal constant N = 256;
 
     // Справжня NTT буде тут
-    function ntt(uint256[256] memory a)
-        internal
-        pure
-        returns (uint256[256] memory)
-    {
+    function ntt(uint256[256] memory a) internal pure returns (uint256[256] memory) {
         // TODO: Реальна реалізація Cooley–Tukey зайде сюди
         return a;
     }
 
     // Inverse NTT (Gentleman–Sande) буде тут
-    function intt(uint256[256] memory a)
-        internal
-        pure
-        returns (uint256[256] memory)
-    {
+    function intt(uint256[256] memory a) internal pure returns (uint256[256] memory) {
         // TODO: Реальна реалізація inverse NTT тут
         return a;
     }

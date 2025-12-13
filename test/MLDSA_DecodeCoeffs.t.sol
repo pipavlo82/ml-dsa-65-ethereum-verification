@@ -6,20 +6,12 @@ import "../contracts/verifier/MLDSA65_Verifier_v2.sol";
 
 /// @notice Harness для доступу до внутрішніх decode-хелперів.
 contract MLDSA_DecodeCoeffs_Harness is MLDSA65_Verifier_v2 {
-    function exposedDecodePublicKey(bytes memory raw)
-        external
-        pure
-        returns (DecodedPublicKey memory)
-    {
+    function exposedDecodePublicKey(bytes memory raw) external pure returns (DecodedPublicKey memory) {
         PublicKey memory pk = PublicKey({raw: raw});
         return _decodePublicKey(pk);
     }
 
-    function exposedDecodeSignature(bytes memory raw)
-        external
-        pure
-        returns (DecodedSignature memory)
-    {
+    function exposedDecodeSignature(bytes memory raw) external pure returns (DecodedSignature memory) {
         Signature memory sig = Signature({raw: raw});
         return _decodeSignature(sig);
     }
@@ -34,18 +26,10 @@ contract MLDSA_DecodeCoeffs_Test is Test {
 
     /// @dev Пакує 4×10-бітні коефіцієнти в 5 байт (FIPS-204 / Dilithium layout).
     ///      Такий самий layout, як у MLDSA_FIPSPack_t1.t.sol.
-    function _pack4x10(
-        uint16 t0,
-        uint16 t1,
-        uint16 t2,
-        uint16 t3
-    ) internal pure returns (bytes5 outBytes) {
+    function _pack4x10(uint16 t0, uint16 t1, uint16 t2, uint16 t3) internal pure returns (bytes5 outBytes) {
         require(t0 < 1024 && t1 < 1024 && t2 < 1024 && t3 < 1024, "coeff out of range");
 
-        uint64 acc = uint64(t0)
-            | (uint64(t1) << 10)
-            | (uint64(t2) << 20)
-            | (uint64(t3) << 30);
+        uint64 acc = uint64(t0) | (uint64(t1) << 10) | (uint64(t2) << 20) | (uint64(t3) << 30);
 
         bytes memory tmp = new bytes(5);
         tmp[0] = bytes1(uint8(acc & 0xFF));
@@ -78,30 +62,13 @@ contract MLDSA_DecodeCoeffs_Test is Test {
             pkRaw[32 + i] = packed[i];
         }
 
-        MLDSA65_Verifier_v2.DecodedPublicKey memory dpk =
-            harness.exposedDecodePublicKey(pkRaw);
+        MLDSA65_Verifier_v2.DecodedPublicKey memory dpk = harness.exposedDecodePublicKey(pkRaw);
 
         // Перевіряємо, що декодовані t1[0].polys[0][0..3] збігаються.
-        assertEq(
-            int256(dpk.t1.polys[0][0]),
-            int256(int32(uint32(c0))),
-            "t1[0][0] mismatch"
-        );
-        assertEq(
-            int256(dpk.t1.polys[0][1]),
-            int256(int32(uint32(c1))),
-            "t1[0][1] mismatch"
-        );
-        assertEq(
-            int256(dpk.t1.polys[0][2]),
-            int256(int32(uint32(c2))),
-            "t1[0][2] mismatch"
-        );
-        assertEq(
-            int256(dpk.t1.polys[0][3]),
-            int256(int32(uint32(c3))),
-            "t1[0][3] mismatch"
-        );
+        assertEq(int256(dpk.t1.polys[0][0]), int256(int32(uint32(c0))), "t1[0][0] mismatch");
+        assertEq(int256(dpk.t1.polys[0][1]), int256(int32(uint32(c1))), "t1[0][1] mismatch");
+        assertEq(int256(dpk.t1.polys[0][2]), int256(int32(uint32(c2))), "t1[0][2] mismatch");
+        assertEq(int256(dpk.t1.polys[0][3]), int256(int32(uint32(c3))), "t1[0][3] mismatch");
     }
 
     function test_decode_signature_first_four_z_coeffs() public {
@@ -109,8 +76,7 @@ contract MLDSA_DecodeCoeffs_Test is Test {
         bytes memory sigRaw = new bytes(64);
 
         // Цільові коефіцієнти для z.polys[0][0..3].
-        int32[4] memory coeffs =
-            [int32(10), int32(20), int32(30), int32(40)];
+        int32[4] memory coeffs = [int32(10), int32(20), int32(30), int32(40)];
 
         // Кодуємо кожен coeff як 4-байтовий little-endian.
         for (uint256 i = 0; i < 4; ++i) {
@@ -123,15 +89,10 @@ contract MLDSA_DecodeCoeffs_Test is Test {
             sigRaw[off + 3] = bytes1(uint8((v >> 24) & 0xff));
         }
 
-        MLDSA65_Verifier_v2.DecodedSignature memory dsig =
-            harness.exposedDecodeSignature(sigRaw);
+        MLDSA65_Verifier_v2.DecodedSignature memory dsig = harness.exposedDecodeSignature(sigRaw);
 
         for (uint256 i = 0; i < 4; ++i) {
-            assertEq(
-                int256(dsig.z.polys[0][i]),
-                int256(coeffs[i]),
-                "z[0][i] mismatch"
-            );
+            assertEq(int256(dsig.z.polys[0][i]), int256(coeffs[i]), "z[0][i] mismatch");
         }
     }
 }

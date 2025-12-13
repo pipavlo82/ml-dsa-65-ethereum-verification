@@ -7,9 +7,7 @@ import "../contracts/verifier/MLDSA65_Verifier_v2.sol";
 /// @dev Невеликий harness, щоб дістатися до _compute_w без зміни production-контракту.
 contract MatrixVecHarness is MLDSA65_Verifier_v2 {
     /// @notice w = A · z для z = 0
-    function computeWZeroZ(
-        bytes32 rho
-    ) external pure returns (MLDSA65_PolyVec.PolyVecK memory w) {
+    function computeWZeroZ(bytes32 rho) external pure returns (MLDSA65_PolyVec.PolyVecK memory w) {
         DecodedPublicKey memory dpk;
         dpk.rho = rho;
 
@@ -20,12 +18,11 @@ contract MatrixVecHarness is MLDSA65_Verifier_v2 {
     }
 
     /// @notice w = A · z для z, де лише один коефіцієнт ненульовий.
-    function computeWWithUnitZ(
-        bytes32 rho,
-        uint8 lIndex,
-        uint16 coeffIndex,
-        int32 value
-    ) external pure returns (MLDSA65_PolyVec.PolyVecK memory w) {
+    function computeWWithUnitZ(bytes32 rho, uint8 lIndex, uint16 coeffIndex, int32 value)
+        external
+        pure
+        returns (MLDSA65_PolyVec.PolyVecK memory w)
+    {
         require(lIndex < MLDSA65_PolyVec.L, "invalid lIndex");
         require(coeffIndex < MLDSA65_PolyVec.N, "invalid coeffIndex");
 
@@ -54,11 +51,7 @@ contract MLDSA_MatrixVec_Test is Test {
 
         for (uint256 k = 0; k < MLDSA65_PolyVec.K; ++k) {
             for (uint256 i = 0; i < MLDSA65_PolyVec.N; ++i) {
-                assertEq(
-                    int256(w.polys[k][i]),
-                    int256(0),
-                    "w must be zero when z is zero"
-                );
+                assertEq(int256(w.polys[k][i]), int256(0), "w must be zero when z is zero");
             }
         }
     }
@@ -72,20 +65,10 @@ contract MLDSA_MatrixVec_Test is Test {
         uint16 coeffIndex = 0;
 
         // w1 = A · (1 * e)
-        MLDSA65_PolyVec.PolyVecK memory w1 = harness.computeWWithUnitZ(
-            rho,
-            lIndex,
-            coeffIndex,
-            1
-        );
+        MLDSA65_PolyVec.PolyVecK memory w1 = harness.computeWWithUnitZ(rho, lIndex, coeffIndex, 1);
 
         // w2 = A · (2 * e)
-        MLDSA65_PolyVec.PolyVecK memory w2 = harness.computeWWithUnitZ(
-            rho,
-            lIndex,
-            coeffIndex,
-            2
-        );
+        MLDSA65_PolyVec.PolyVecK memory w2 = harness.computeWWithUnitZ(rho, lIndex, coeffIndex, 2);
 
         // Перевіряємо: w2 == 2 * w1 (mod Q) для всіх коефіцієнтів.
         int64 q = int64(Q);
@@ -98,11 +81,7 @@ contract MLDSA_MatrixVec_Test is Test {
                 int64 expected = (2 * v1) % q;
                 if (expected < 0) expected += q;
 
-                assertEq(
-                    int256(v2),
-                    int256(expected),
-                    "matrix-vector multiply must be linear in scalar"
-                );
+                assertEq(int256(v2), int256(expected), "matrix-vector multiply must be linear in scalar");
             }
         }
     }

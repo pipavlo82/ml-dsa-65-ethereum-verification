@@ -6,11 +6,9 @@ import "../contracts/verifier/MLDSA65_Verifier_v2.sol";
 
 contract MLDSA_VerifierSkeleton_Test is Test {
     function test_verify_default_returns_false() public {
-        MLDSA65_Verifier_v2.PublicKey memory pk =
-            MLDSA65_Verifier_v2.PublicKey({ raw: new bytes(0) });
+        MLDSA65_Verifier_v2.PublicKey memory pk = MLDSA65_Verifier_v2.PublicKey({raw: new bytes(0)});
 
-        MLDSA65_Verifier_v2.Signature memory sig =
-            MLDSA65_Verifier_v2.Signature({ raw: new bytes(0) });
+        MLDSA65_Verifier_v2.Signature memory sig = MLDSA65_Verifier_v2.Signature({raw: new bytes(0)});
 
         MLDSA65_Verifier_v2 verifier = new MLDSA65_Verifier_v2();
 

@@ -6,11 +6,7 @@ import "../contracts/verifier/MLDSA65_Verifier_v2.sol";
 
 /// @notice Harness to expose internal decode helpers from MLDSA65_Verifier_v2.
 contract MLDSA_FIPSPack_t1_Harness is MLDSA65_Verifier_v2 {
-    function exposedDecodePublicKey(bytes memory raw)
-        external
-        pure
-        returns (DecodedPublicKey memory)
-    {
+    function exposedDecodePublicKey(bytes memory raw) external pure returns (DecodedPublicKey memory) {
         PublicKey memory pk = PublicKey({raw: raw});
         return _decodePublicKey(pk);
     }
@@ -29,20 +25,12 @@ contract MLDSA_FIPSPack_t1_Test is Test {
     ///      t1 = ((b1 >> 2) | (b2 << 6)) & 0x3FF
     ///      t2 = ((b2 >> 4) | (b3 << 4)) & 0x3FF
     ///      t3 = ((b3 >> 6) | (b4 << 2)) & 0x3FF
-    function _pack4x10(
-        uint16 t0,
-        uint16 t1_,
-        uint16 t2,
-        uint16 t3
-    ) internal pure returns (bytes5 outBytes) {
+    function _pack4x10(uint16 t0, uint16 t1_, uint16 t2, uint16 t3) internal pure returns (bytes5 outBytes) {
         // Ensure inputs are 10-bit.
         require(t0 < 1024 && t1_ < 1024 && t2 < 1024 && t3 < 1024, "coeff out of range");
 
         // Стандартне 4×10 → 40 біт: [t0 | t1<<10 | t2<<20 | t3<<30]
-        uint64 acc = uint64(t0)
-            | (uint64(t1_) << 10)
-            | (uint64(t2) << 20)
-            | (uint64(t3) << 30);
+        uint64 acc = uint64(t0) | (uint64(t1_) << 10) | (uint64(t2) << 20) | (uint64(t3) << 30);
 
         bytes memory tmp = new bytes(5);
         tmp[0] = bytes1(uint8(acc & 0xFF));
@@ -57,11 +45,7 @@ contract MLDSA_FIPSPack_t1_Test is Test {
     }
 
     /// @dev Helper: пакує повний поліном (256×10 біт) у 320 байтів FIPS-204 layout.
-    function _packPoly10(uint16[256] memory coeffs)
-        internal
-        pure
-        returns (bytes memory outBytes)
-    {
+    function _packPoly10(uint16[256] memory coeffs) internal pure returns (bytes memory outBytes) {
         bytes memory packed = new bytes(320);
         uint256 byteOffset = 0;
 
@@ -105,30 +89,13 @@ contract MLDSA_FIPSPack_t1_Test is Test {
         }
 
         // Decode via harness.
-        MLDSA65_Verifier_v2.DecodedPublicKey memory dpk =
-            harness.exposedDecodePublicKey(pkRaw);
+        MLDSA65_Verifier_v2.DecodedPublicKey memory dpk = harness.exposedDecodePublicKey(pkRaw);
 
         // Check that t1[0].polys[0][0..3] match original coefficients.
-        assertEq(
-            int256(dpk.t1.polys[0][0]),
-            int256(int32(uint32(c0))),
-            "t1[0][0] mismatch"
-        );
-        assertEq(
-            int256(dpk.t1.polys[0][1]),
-            int256(int32(uint32(c1))),
-            "t1[0][1] mismatch"
-        );
-        assertEq(
-            int256(dpk.t1.polys[0][2]),
-            int256(int32(uint32(c2))),
-            "t1[0][2] mismatch"
-        );
-        assertEq(
-            int256(dpk.t1.polys[0][3]),
-            int256(int32(uint32(c3))),
-            "t1[0][3] mismatch"
-        );
+        assertEq(int256(dpk.t1.polys[0][0]), int256(int32(uint32(c0))), "t1[0][0] mismatch");
+        assertEq(int256(dpk.t1.polys[0][1]), int256(int32(uint32(c1))), "t1[0][1] mismatch");
+        assertEq(int256(dpk.t1.polys[0][2]), int256(int32(uint32(c2))), "t1[0][2] mismatch");
+        assertEq(int256(dpk.t1.polys[0][3]), int256(int32(uint32(c3))), "t1[0][3] mismatch");
     }
 
     function test_fips_pack_t1_full_poly_roundtrip() public {
@@ -149,19 +116,14 @@ contract MLDSA_FIPSPack_t1_Test is Test {
         }
 
         // Decode via harness.
-        MLDSA65_Verifier_v2.DecodedPublicKey memory dpk =
-            harness.exposedDecodePublicKey(pkRaw);
+        MLDSA65_Verifier_v2.DecodedPublicKey memory dpk = harness.exposedDecodePublicKey(pkRaw);
 
         // Перевіряємо, що всі 256 коефіцієнтів t1[0] відновлюються коректно.
         for (uint256 i = 0; i < 256; ++i) {
             int32 expected = int32(uint32(coeffs[i]));
             int32 actual = dpk.t1.polys[0][i];
 
-            assertEq(
-                int256(actual),
-                int256(expected),
-                string.concat("t1[0][", vm.toString(i), "] mismatch")
-            );
+            assertEq(int256(actual), int256(expected), string.concat("t1[0][", vm.toString(i), "] mismatch"));
         }
     }
 }

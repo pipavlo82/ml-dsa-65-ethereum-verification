@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
-import { MLDSA65_Poly } from "../contracts/verifier/MLDSA65_Verifier_v2.sol";
+import {MLDSA65_Poly} from "../contracts/verifier/MLDSA65_Verifier_v2.sol";
 
 contract MLDSA_Poly_Test is Test {
     using MLDSA65_Poly for int32[256];

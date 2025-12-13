@@ -17,17 +17,15 @@ contract MLDSA_RealVector_Test is Test {
 
         // 2) Сирі PQ-поля з JSON
         bytes memory sigRaw = vm.parseJsonBytes(json, ".signature_raw");
-        bytes memory pkRaw  = vm.parseJsonBytes(json, ".public_key_raw");
+        bytes memory pkRaw = vm.parseJsonBytes(json, ".public_key_raw");
 
         // msg_hash збережений як hex-string, конвертимо в bytes32
         string memory msgHex = vm.parseJsonString(json, ".msg_hash");
         bytes32 msgHash = bytes32(vm.parseBytes(msgHex));
 
         // 3) Мапимо на нові ABI-структури v2
-        MLDSA65_Verifier_v2.PublicKey memory pk =
-            MLDSA65_Verifier_v2.PublicKey({raw: pkRaw});
-        MLDSA65_Verifier_v2.Signature memory sig =
-            MLDSA65_Verifier_v2.Signature({raw: sigRaw});
+        MLDSA65_Verifier_v2.PublicKey memory pk = MLDSA65_Verifier_v2.PublicKey({raw: pkRaw});
+        MLDSA65_Verifier_v2.Signature memory sig = MLDSA65_Verifier_v2.Signature({raw: sigRaw});
 
         // 4) Викликаємо verify — поки що це скелет, який завжди повертає false,
         //    але важливо, що весь decode/NTT/compute_w пайплайн не падає.

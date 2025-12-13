@@ -14,34 +14,24 @@ contract MLDSA_MatrixVecGas_Test is Test {
 
     /// @notice Measure gas for w = A*z with c = 0 (no challenge term).
     function test_matrixvec_w_gas_no_challenge() public {
-        (
-            MLDSA65_Verifier_v2.DecodedPublicKey memory dpk,
-            MLDSA65_Verifier_v2.DecodedSignature memory dsig
-        ) = verifier.buildSyntheticDecodedNoChallenge();
+        (MLDSA65_Verifier_v2.DecodedPublicKey memory dpk, MLDSA65_Verifier_v2.DecodedSignature memory dsig) =
+            verifier.buildSyntheticDecodedNoChallenge();
 
         uint256 gasUsed = verifier.measureComputeW(dpk, dsig);
 
-        emit log_named_uint(
-            "w = A*z (no challenge) gas",
-            gasUsed
-        );
+        emit log_named_uint("w = A*z (no challenge) gas", gasUsed);
         // М'який upper-bound, ти зараз ~98–105M
         assertLt(gasUsed, 200_000_000);
     }
 
     /// @notice Measure gas for w = A*z - c*t1 with non-zero c (full synthetic path).
     function test_matrixvec_w_gas_with_challenge() public {
-        (
-            MLDSA65_Verifier_v2.DecodedPublicKey memory dpk,
-            MLDSA65_Verifier_v2.DecodedSignature memory dsig
-        ) = verifier.buildSyntheticDecodedWithChallenge();
+        (MLDSA65_Verifier_v2.DecodedPublicKey memory dpk, MLDSA65_Verifier_v2.DecodedSignature memory dsig) =
+            verifier.buildSyntheticDecodedWithChallenge();
 
         uint256 gasUsed = verifier.measureComputeW(dpk, dsig);
 
-        emit log_named_uint(
-            "w = A*z - c*t1 (with challenge) gas",
-            gasUsed
-        );
+        emit log_named_uint("w = A*z - c*t1 (with challenge) gas", gasUsed);
         // Теж з запасом відносно твоїх ~115–123M
         assertLt(gasUsed, 200_000_000);
     }
@@ -111,10 +101,11 @@ contract MLDSA65_Verifier_v2_Harness is MLDSA65_Verifier_v2 {
     }
 
     /// @notice Measure gas used by a single _compute_w call.
-    function measureComputeW(
-        DecodedPublicKey memory dpk,
-        DecodedSignature memory dsig
-    ) public view returns (uint256 gasUsed) {
+    function measureComputeW(DecodedPublicKey memory dpk, DecodedSignature memory dsig)
+        public
+        view
+        returns (uint256 gasUsed)
+    {
         uint256 gasBefore = gasleft();
         MLDSA65_PolyVec.PolyVecK memory w = _compute_w(dpk, dsig);
         // silence unused-variable warning

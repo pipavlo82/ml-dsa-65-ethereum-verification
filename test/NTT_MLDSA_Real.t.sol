@@ -8,9 +8,7 @@ contract NTT_MLDSA_Real_Test is Test {
     uint256 constant Q = 8380417;
 
     function _rand() internal view returns (uint256) {
-        return uint256(
-            keccak256(abi.encodePacked(block.timestamp, gasleft()))
-        ) % Q;
+        return uint256(keccak256(abi.encodePacked(block.timestamp, gasleft()))) % Q;
     }
 
     // ------------------------------------------------------------
@@ -18,7 +16,9 @@ contract NTT_MLDSA_Real_Test is Test {
     // ------------------------------------------------------------
     function test_NTT_Real_StructureRuns() public {
         uint256[256] memory v;
-        for (uint256 i = 0; i < 256; i++) v[i] = _rand();
+        for (uint256 i = 0; i < 256; i++) {
+            v[i] = _rand();
+        }
 
         uint256[256] memory n = NTT_MLDSA_Real.ntt(v);
         uint256[256] memory b = NTT_MLDSA_Real.intt(n);
@@ -32,13 +32,16 @@ contract NTT_MLDSA_Real_Test is Test {
     // ------------------------------------------------------------
     function test_NTT_Real_RoundtripRandom() public {
         uint256[256] memory v;
-        for (uint256 i = 0; i < 256; i++) v[i] = _rand();
+        for (uint256 i = 0; i < 256; i++) {
+            v[i] = _rand();
+        }
 
         uint256[256] memory n = NTT_MLDSA_Real.ntt(v);
         uint256[256] memory b = NTT_MLDSA_Real.intt(n);
 
-        for (uint256 i = 0; i < 256; i++)
+        for (uint256 i = 0; i < 256; i++) {
             assertEq(b[i], v[i], "random roundtrip mismatch");
+        }
     }
 
     // ------------------------------------------------------------
@@ -49,8 +52,9 @@ contract NTT_MLDSA_Real_Test is Test {
             uint256[256] memory v;
 
             // basis vector e_pos
-            for (uint256 i = 0; i < 256; i++)
+            for (uint256 i = 0; i < 256; i++) {
                 v[i] = (i == pos) ? 1 : 0;
+            }
 
             uint256[256] memory n = NTT_MLDSA_Real.ntt(v);
             uint256[256] memory b = NTT_MLDSA_Real.intt(n);

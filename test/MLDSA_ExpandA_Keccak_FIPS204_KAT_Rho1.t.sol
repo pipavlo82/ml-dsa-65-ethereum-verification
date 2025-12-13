@@ -25,11 +25,7 @@ contract MLDSA_ExpandA_Keccak_FIPS204_KAT_Rho1 is Test {
         int32[256] memory expected = _parseCoeffs(coeffsStr);
 
         // 4) Реальне ExpandA Keccak/FIPS
-        int32[256] memory actual = MLDSA65_ExpandA_KeccakFIPS204.expandA_poly(
-            rho,
-            uint8(row),
-            uint8(col)
-        );
+        int32[256] memory actual = MLDSA65_ExpandA_KeccakFIPS204.expandA_poly(rho, uint8(row), uint8(col));
 
         // 5) Порівнюємо поелементно
         for (uint256 i = 0; i < 256; ++i) {
@@ -80,9 +76,7 @@ contract MLDSA_ExpandA_Keccak_FIPS204_KAT_Rho1 is Test {
     }
 
     /// @notice Парсить "51329,29682,...,931" у масив із 256 int32.
-    function _parseCoeffs(
-        string memory s
-    ) internal pure returns (int32[256] memory coeffs) {
+    function _parseCoeffs(string memory s) internal pure returns (int32[256] memory coeffs) {
         bytes memory b = bytes(s);
         uint256 len = b.length;
         uint256 idx = 0;
@@ -91,8 +85,7 @@ contract MLDSA_ExpandA_Keccak_FIPS204_KAT_Rho1 is Test {
         while (idx < len) {
             // Пропускаємо пробіли та коми
             while (
-                idx < len &&
-                (b[idx] == " " || b[idx] == "," || b[idx] == "\n" || b[idx] == "\r" || b[idx] == "\t")
+                idx < len && (b[idx] == " " || b[idx] == "," || b[idx] == "\n" || b[idx] == "\r" || b[idx] == "\t")
             ) {
                 idx++;
             }

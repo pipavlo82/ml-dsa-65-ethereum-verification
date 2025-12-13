@@ -13,11 +13,7 @@ contract MLDSA_Verify_POC_Test is Test {
 
     /// @dev Мінімальний валідний публічний ключ:
     /// просто 1952 байти нулів (t1 + rho), нас ці значення поки не цікавлять.
-    function _makePk()
-        internal
-        pure
-        returns (MLDSA65_Verifier_v2.PublicKey memory pk)
-    {
+    function _makePk() internal pure returns (MLDSA65_Verifier_v2.PublicKey memory pk) {
         bytes memory raw = new bytes(1952); // T1_PACKED_BYTES (1920) + RHO (32)
         pk.raw = raw;
         return pk;
@@ -26,11 +22,7 @@ contract MLDSA_Verify_POC_Test is Test {
     /// @dev Мінімальна сигнатура:
     ///  - перші 32 байти: z (усі нулі → точно в межах γ₁)
     ///  - останні 32 байти: seed для challenge c.
-    function _makeSig(bytes32 cSeed)
-        internal
-        pure
-        returns (MLDSA65_Verifier_v2.Signature memory sig)
-    {
+    function _makeSig(bytes32 cSeed) internal pure returns (MLDSA65_Verifier_v2.Signature memory sig) {
         bytes memory sigRaw = abi.encodePacked(bytes32(0), cSeed);
         sig.raw = sigRaw;
         return sig;

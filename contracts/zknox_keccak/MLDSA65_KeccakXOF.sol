@@ -21,22 +21,13 @@ library MLDSA65_KeccakXOF {
     }
 
     /// @notice Стрім для ExpandA: seed := "MLDSA65-ExpandA" || rho || row || col.
-    function initExpandA(bytes32 rho, uint16 row, uint16 col)
-        internal
-        pure
-        returns (Stream memory s)
-    {
-        bytes memory seed =
-            abi.encodePacked("MLDSA65-ExpandA", rho, row, col);
+    function initExpandA(bytes32 rho, uint16 row, uint16 col) internal pure returns (Stream memory s) {
+        bytes memory seed = abi.encodePacked("MLDSA65-ExpandA", rho, row, col);
         s.prng = initPRNG(seed);
     }
 
     /// @notice Стрім для challenge / загального XOF: seed := "MLDSA65-XOF" || rho || nonce.
-    function initXOF(bytes32 rho, uint64 nonce)
-        internal
-        pure
-        returns (Stream memory s)
-    {
+    function initXOF(bytes32 rho, uint64 nonce) internal pure returns (Stream memory s) {
         bytes memory seed = abi.encodePacked("MLDSA65-XOF", rho, nonce);
         s.prng = initPRNG(seed);
     }
@@ -60,18 +51,11 @@ library MLDSA65_KeccakXOF {
         uint8 b1 = xofNextByte(s);
         uint8 b2 = xofNextByte(s);
         uint8 b3 = xofNextByte(s);
-        v = uint32(b0)
-            | (uint32(b1) << 8)
-            | (uint32(b2) << 16)
-            | (uint32(b3) << 24);
+        v = uint32(b0) | (uint32(b1) << 8) | (uint32(b2) << 16) | (uint32(b3) << 24);
     }
 
     /// @notice Витиснути кілька байт у буфер.
-    function squeezeBytes(Stream memory s, uint256 len)
-        internal
-        pure
-        returns (bytes memory out)
-    {
+    function squeezeBytes(Stream memory s, uint256 len) internal pure returns (bytes memory out) {
         out = new bytes(len);
         for (uint256 i = 0; i < len; i++) {
             out[i] = bytes1(xofNextByte(s));

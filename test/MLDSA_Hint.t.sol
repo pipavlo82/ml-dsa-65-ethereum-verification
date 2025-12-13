@@ -2,10 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
-import {
-    MLDSA65_PolyVec,
-    MLDSA65_Hint
-} from "../contracts/verifier/MLDSA65_Verifier_v2.sol";
+import {MLDSA65_PolyVec, MLDSA65_Hint} from "../contracts/verifier/MLDSA65_Verifier_v2.sol";
 
 contract MLDSA_Hint_Test is Test {
     using MLDSA65_Hint for MLDSA65_Hint.HintVecL;
@@ -42,8 +39,7 @@ contract MLDSA_Hint_Test is Test {
         w.polys[0][0] = 123;
         h.flags[0][0] = 0;
 
-        MLDSA65_PolyVec.PolyVecL memory out =
-            MLDSA65_Hint.applyHintL(w, h);
+        MLDSA65_PolyVec.PolyVecL memory out = MLDSA65_Hint.applyHintL(w, h);
 
         assertEq(int256(out.polys[0][0]), int256(123));
     }

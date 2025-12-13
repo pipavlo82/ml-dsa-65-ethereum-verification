@@ -35,7 +35,7 @@ library NTT_MLDSA_Real {
     /// Варіант 1: простий * % Q (поки що цього достатньо).
     function _mulModQ(uint256 x, uint256 y) private pure returns (uint256 r) {
         unchecked {
-            uint256 p = x * y;  // x,y < Q → p < 2^46, overflow не можливий
+            uint256 p = x * y; // x,y < Q → p < 2^46, overflow не можливий
             r = p % Q;
         }
     }
@@ -79,7 +79,7 @@ library NTT_MLDSA_Real {
                     uint256 zeta = NTT_MLDSA_Zetas.getZeta(k--);
 
                     for (uint256 j = start; j < start + len; j++) {
-                        uint256 aj  = a[j];
+                        uint256 aj = a[j];
                         uint256 ajl = a[j + len];
 
                         // sum  = a[j] + a[j+len]

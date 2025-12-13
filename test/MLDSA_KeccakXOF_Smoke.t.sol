@@ -12,10 +12,8 @@ contract MLDSA_KeccakXOF_Smoke_Test is Test {
         uint16 row = 3;
         uint16 col = 5;
 
-        MLDSA65_KeccakXOF.Stream memory s1 =
-            MLDSA65_KeccakXOF.initExpandA(rho, row, col);
-        MLDSA65_KeccakXOF.Stream memory s2 =
-            MLDSA65_KeccakXOF.initExpandA(rho, row, col);
+        MLDSA65_KeccakXOF.Stream memory s1 = MLDSA65_KeccakXOF.initExpandA(rho, row, col);
+        MLDSA65_KeccakXOF.Stream memory s2 = MLDSA65_KeccakXOF.initExpandA(rho, row, col);
 
         uint16[4] memory seq1;
         uint16[4] memory seq2;
@@ -35,10 +33,8 @@ contract MLDSA_KeccakXOF_Smoke_Test is Test {
     function test_expandA_stream_changes_with_row_col() public {
         bytes32 rho = keccak256("rho-example");
 
-        MLDSA65_KeccakXOF.Stream memory s_row3 =
-            MLDSA65_KeccakXOF.initExpandA(rho, 3, 5);
-        MLDSA65_KeccakXOF.Stream memory s_row4 =
-            MLDSA65_KeccakXOF.initExpandA(rho, 4, 5);
+        MLDSA65_KeccakXOF.Stream memory s_row3 = MLDSA65_KeccakXOF.initExpandA(rho, 3, 5);
+        MLDSA65_KeccakXOF.Stream memory s_row4 = MLDSA65_KeccakXOF.initExpandA(rho, 4, 5);
 
         uint16 v1 = s_row3.nextU16();
         uint16 v2 = s_row4.nextU16();

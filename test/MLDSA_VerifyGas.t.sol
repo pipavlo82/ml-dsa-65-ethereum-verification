@@ -15,11 +15,7 @@ contract MLDSA_VerifyGas_Test is Test {
     //  Helpers: synthetic PK / SIG
     // -----------------------------
 
-    function _makePkForGas()
-        internal
-        pure
-        returns (MLDSA65_Verifier_v2.PublicKey memory pk)
-    {
+    function _makePkForGas() internal pure returns (MLDSA65_Verifier_v2.PublicKey memory pk) {
         // Повноцінний FIPS-розмір: 1952 байти = 1920 (t1) + 32 (rho)
         bytes memory raw = new bytes(1952);
 
@@ -32,11 +28,7 @@ contract MLDSA_VerifyGas_Test is Test {
         return pk;
     }
 
-    function _makeSigForGas()
-        internal
-        pure
-        returns (MLDSA65_Verifier_v2.Signature memory sig, bytes32 cSeed)
-    {
+    function _makeSigForGas() internal pure returns (MLDSA65_Verifier_v2.Signature memory sig, bytes32 cSeed) {
         // Повноцінний FIPS-розмір сигнатури ML-DSA-65: 3309 байтів
         bytes memory raw = new bytes(3309);
 
@@ -64,8 +56,7 @@ contract MLDSA_VerifyGas_Test is Test {
 
     function test_verify_gas_poc() public {
         MLDSA65_Verifier_v2.PublicKey memory pk = _makePkForGas();
-        (MLDSA65_Verifier_v2.Signature memory sig, bytes32 cSeed) =
-            _makeSigForGas();
+        (MLDSA65_Verifier_v2.Signature memory sig, bytes32 cSeed) = _makeSigForGas();
 
         // ВАЖЛИВО:
         // Для нової FIPS-style логіки verify() ми мусимо
@@ -78,10 +69,7 @@ contract MLDSA_VerifyGas_Test is Test {
         uint256 gasUsed = gasBefore - gasleft();
 
         // Лог для документації
-        emit log_named_uint(
-            "verify() POC (decode + checks + w = A*z - c*t1) gas",
-            gasUsed
-        );
+        emit log_named_uint("verify() POC (decode + checks + w = A*z - c*t1) gas", gasUsed);
 
         // Ти зараз ~120–129M, даємо запас до 200M
         assertLt(gasUsed, 200_000_000);

@@ -34,8 +34,8 @@ contract MLDSA_StructuralParser_Test is Test {
     }
 
     function test_invalid_signature_length() public {
-        bytes memory badSig = new bytes(100);    // Too short
-        bytes memory pubkey = new bytes(1952);   // Correct length
+        bytes memory badSig = new bytes(100); // Too short
+        bytes memory pubkey = new bytes(1952); // Correct length
         bytes32 msgHash = bytes32(0);
 
         vm.expectRevert("Invalid sig length");
@@ -43,7 +43,7 @@ contract MLDSA_StructuralParser_Test is Test {
     }
 
     function test_invalid_pubkey_length() public {
-        bytes memory sig = new bytes(3309);      // Correct length
+        bytes memory sig = new bytes(3309); // Correct length
         bytes memory badPubkey = new bytes(100); // Too short
         bytes32 msgHash = bytes32(0);
 

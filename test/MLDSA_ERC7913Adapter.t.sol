@@ -45,10 +45,7 @@ contract MLDSA_ERC7913Adapter_Test is Test {
         uint256 gasUsed = gasBefore - gasleft();
 
         emit log_named_uint("erc7913_adapter_gas", gasUsed);
-        emit log_named_bytes32(
-            "erc7913_adapter_result",
-            bytes32(res)
-        );
+        emit log_named_bytes32("erc7913_adapter_result", bytes32(res));
 
         // 6) Допустимі два варіанти:
         //    - поки verify() ще не повністю FIPS-коректний → 0xffffffff
@@ -59,10 +56,7 @@ contract MLDSA_ERC7913Adapter_Test is Test {
         bool isOkSelector = (res == okSelector);
         bool isFailCode = (res == failCode);
 
-        assertTrue(
-            isOkSelector || isFailCode,
-            "adapter must return either selector or 0xffffffff"
-        );
+        assertTrue(isOkSelector || isFailCode, "adapter must return either selector or 0xffffffff");
 
         // М'який gas-ліміт, поки що без агресивних оптимізацій
         assertLt(gasUsed, 400_000_000);

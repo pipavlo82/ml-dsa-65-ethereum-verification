@@ -11,9 +11,7 @@ contract MLDSA_ExpandA_KAT_Structure_Test is Test {
 
     function test_expandA_kat_dummy_structure() public {
         // читаємо dummy JSON, щоб перевірити, що форми/ключі нормальні
-        string memory path = string(
-            abi.encodePacked(vm.projectRoot(), "/test_vectors/expandA_dummy.json")
-        );
+        string memory path = string(abi.encodePacked(vm.projectRoot(), "/test_vectors/expandA_dummy.json"));
         string memory json = vm.readFile(path);
 
         // базові поля

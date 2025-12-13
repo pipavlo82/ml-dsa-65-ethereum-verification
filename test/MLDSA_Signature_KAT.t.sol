@@ -7,11 +7,7 @@ import "../contracts/verifier/MLDSA65_Verifier_v2.sol";
 
 /// @notice Harness для декоду сигнатури в KAT-тестах.
 contract MLDSA_Signature_KAT_Harness is MLDSA65_Verifier_v2 {
-    function exposedDecodeSignature(bytes memory raw)
-        external
-        pure
-        returns (DecodedSignature memory)
-    {
+    function exposedDecodeSignature(bytes memory raw) external pure returns (DecodedSignature memory) {
         Signature memory sig = Signature({raw: raw});
         return _decodeSignature(sig);
     }
@@ -46,8 +42,7 @@ contract MLDSA_Signature_KAT_Test is Test {
         }
 
         // 4. Декодуємо сигнатуру через контракт
-        MLDSA65_Verifier_v2.DecodedSignature memory dsig =
-            harness.exposedDecodeSignature(sigRaw);
+        MLDSA65_Verifier_v2.DecodedSignature memory dsig = harness.exposedDecodeSignature(sigRaw);
 
         // 5. Перевіряємо c (останнi 32 байти)
         assertEq(dsig.c, expectedC, "c mismatch");
@@ -57,11 +52,7 @@ contract MLDSA_Signature_KAT_Test is Test {
             string memory path = string.concat(".z[0][", vm.toString(i), "]");
             int256 expectedCoeff = json.readInt(path);
 
-            assertEq(
-                int256(dsig.z.polys[0][i]),
-                expectedCoeff,
-                string.concat("z[0][", vm.toString(i), "] mismatch")
-            );
+            assertEq(int256(dsig.z.polys[0][i]), expectedCoeff, string.concat("z[0][", vm.toString(i), "] mismatch"));
         }
     }
 }

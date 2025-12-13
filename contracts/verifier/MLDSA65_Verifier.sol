@@ -18,10 +18,16 @@ contract MLDSA65_Verifier {
     }
 
     function verify(
-        PublicKey memory /*pk*/,
-        Signature memory /*sig*/,
+        PublicKey memory,
+        /*pk*/
+        Signature memory,
+        /*sig*/
         bytes32 /*message_digest*/
-    ) public view returns (bool) {
+    )
+        public
+        view
+        returns (bool)
+    {
         return true;
     }
 }

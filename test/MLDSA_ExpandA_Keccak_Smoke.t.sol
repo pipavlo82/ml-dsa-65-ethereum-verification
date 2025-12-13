@@ -6,17 +6,14 @@ import "../contracts/verifier/MLDSA65_ExpandA_KeccakFIPS204.sol";
 
 contract MLDSA_ExpandA_Keccak_Smoke_Test is Test {
     // Детермінований rho для тестів
-    bytes32 constant RHO =
-        hex"000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
+    bytes32 constant RHO = hex"000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
 
     uint16 constant N = 256;
     int32 constant Q = 8380417;
 
     function test_expandA_poly_deterministic() public {
-        int32[256] memory a0 =
-            MLDSA65_ExpandA_KeccakFIPS204.expandA_poly(RHO, 0, 0);
-        int32[256] memory a1 =
-            MLDSA65_ExpandA_KeccakFIPS204.expandA_poly(RHO, 0, 0);
+        int32[256] memory a0 = MLDSA65_ExpandA_KeccakFIPS204.expandA_poly(RHO, 0, 0);
+        int32[256] memory a1 = MLDSA65_ExpandA_KeccakFIPS204.expandA_poly(RHO, 0, 0);
 
         for (uint256 i = 0; i < N; ++i) {
             assertEq(a0[i], a1[i], "coeff mismatch");
@@ -24,12 +21,9 @@ contract MLDSA_ExpandA_Keccak_Smoke_Test is Test {
     }
 
     function test_expandA_poly_separates_row_and_col() public {
-        int32[256] memory a00 =
-            MLDSA65_ExpandA_KeccakFIPS204.expandA_poly(RHO, 0, 0);
-        int32[256] memory a10 =
-            MLDSA65_ExpandA_KeccakFIPS204.expandA_poly(RHO, 1, 0);
-        int32[256] memory a01 =
-            MLDSA65_ExpandA_KeccakFIPS204.expandA_poly(RHO, 0, 1);
+        int32[256] memory a00 = MLDSA65_ExpandA_KeccakFIPS204.expandA_poly(RHO, 0, 0);
+        int32[256] memory a10 = MLDSA65_ExpandA_KeccakFIPS204.expandA_poly(RHO, 1, 0);
+        int32[256] memory a01 = MLDSA65_ExpandA_KeccakFIPS204.expandA_poly(RHO, 0, 1);
 
         bool diffRow = false;
         bool diffCol = false;
@@ -52,8 +46,7 @@ contract MLDSA_ExpandA_Keccak_Smoke_Test is Test {
     }
 
     function test_expandA_poly_coeffs_in_range() public {
-        int32[256] memory a =
-            MLDSA65_ExpandA_KeccakFIPS204.expandA_poly(RHO, 0, 0);
+        int32[256] memory a = MLDSA65_ExpandA_KeccakFIPS204.expandA_poly(RHO, 0, 0);
 
         for (uint256 i = 0; i < N; ++i) {
             // Покладемося на те, що поточний прототип дає коефіцієнти в [0, Q)

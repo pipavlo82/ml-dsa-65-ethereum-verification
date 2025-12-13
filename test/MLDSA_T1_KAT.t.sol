@@ -7,11 +7,7 @@ import "../contracts/verifier/MLDSA65_Verifier_v2.sol";
 
 /// @notice Harness to expose public key decode for KAT tests.
 contract MLDSA_T1_KAT_Harness is MLDSA65_Verifier_v2 {
-    function exposedDecodePublicKey(bytes memory raw)
-        external
-        pure
-        returns (DecodedPublicKey memory)
-    {
+    function exposedDecodePublicKey(bytes memory raw) external pure returns (DecodedPublicKey memory) {
         PublicKey memory pk = PublicKey({raw: raw});
         return _decodePublicKey(pk);
     }
@@ -34,14 +30,11 @@ contract MLDSA_T1_KAT_Test is Test {
         string memory json = vm.readFile("vectors/mldsa65_t1_kat_001.json");
 
         // 2. Дістаємо pubkey (hex-encoded 1952 байти: t1_packed || rho)
-        bytes memory pkRaw = vm.parseBytes(
-            json.readString(".pubkey")
-        );
+        bytes memory pkRaw = vm.parseBytes(json.readString(".pubkey"));
         assertEq(pkRaw.length, 1920 + 32, "pk length mismatch");
 
         // 3. Декодуємо через MLDSA65_Verifier_v2
-        MLDSA65_Verifier_v2.DecodedPublicKey memory dpk =
-            harness.exposedDecodePublicKey(pkRaw);
+        MLDSA65_Verifier_v2.DecodedPublicKey memory dpk = harness.exposedDecodePublicKey(pkRaw);
 
         uint256 K = 6;
         uint256 N = 256;
@@ -50,19 +43,11 @@ contract MLDSA_T1_KAT_Test is Test {
         for (uint256 k = 0; k < K; ++k) {
             for (uint256 i = 0; i < N; ++i) {
                 // шлях типу: .t1[0][0], .t1[0][1], ..., .t1[5][255]
-                string memory key = string(
-                    abi.encodePacked(
-                        ".t1[", vm.toString(k), "][", vm.toString(i), "]"
-                    )
-                );
+                string memory key = string(abi.encodePacked(".t1[", vm.toString(k), "][", vm.toString(i), "]"));
 
                 int256 expectedCoeff = json.readInt(key);
 
-                assertEq(
-                    int256(dpk.t1.polys[k][i]),
-                    expectedCoeff,
-                    "t1 coeff mismatch"
-                );
+                assertEq(int256(dpk.t1.polys[k][i]), expectedCoeff, "t1 coeff mismatch");
             }
         }
     }

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {NTT_MLDSA_Real} from "../ntt/NTT_MLDSA_Real.sol";
-import {MLDSA65_ExpandA_Synthetic_FIPSShape} from "./MLDSA65_ExpandA_Synthetic_FIPSShape.sol";
+import {MLDSA65_ExpandA_KeccakFIPS204} from "./MLDSA65_ExpandA_KeccakFIPS204.sol";
 import {MLDSA65_Challenge} from "./MLDSA65_Challenge.sol";
 
 //
@@ -542,31 +542,61 @@ contract MLDSA65_Verifier_v2 {
     }
 
     //
-    // Synthetic ExpandA(rho) — still test-only A, NOT real FIPS-204 ExpandA
+    // Keccak-based FIPS-204 ExpandA(rho)
     //
 
-    /// @notice Synthetic A[row][col] poly in the time domain via MLDSA65_ExpandA_Synthetic_FIPSShape.
-    /// @dev Використовує FIPS-shaped synthetic ExpandA з окремим KAT.
+    /// @notice A[row][col] polynomial in the time domain via Keccak/XOF FIPS-204 ExpandA.
+    /// @dev This is the real FIPS-204-compatible backend, not the earlier synthetic helper.
     function _expandA_poly(
         bytes32 rho,
         uint8 row,
         uint8 col
     ) internal pure returns (int32[256] memory a) {
-        a = MLDSA65_ExpandA_Synthetic_FIPSShape.expandA_poly(rho, row, col);
+        a = MLDSA65_ExpandA_KeccakFIPS204.expandA_poly(rho, row, col);
     }
 
-    /// @notice Synthetic A[row][col] poly in NTT domain.
-    /// @dev Uses MLDSA65_ExpandA.expandA_poly (time domain) and a single
-    ///      poly-level NTT bridge, без зайвого nttL по L-поліно.
+    /// @notice A[row][col] poly in NTT domain (Keccak backend).
+    /// @dev Uses time-domain Keccak ExpandA + a single poly-level NTT.
     function _expandA_poly_ntt(
         bytes32 rho,
         uint8 row,
         uint8 col
     ) internal pure returns (int32[256] memory a_ntt) {
-        // 1) A в time-domain
+        // 1) A в time-domain через Keccak/FIPS-204 ExpandA
         int32[256] memory a = _expandA_poly(rho, row, col);
         // 2) Один-єдиний NTT для цього полінома
         a_ntt = MLDSA65_PolyVec._nttPoly(a);
+    }
+
+    /// @notice Keccak-based FIPS-shape ExpandA: full matrix A(rho) via Keccak/XOF backend.
+    /// @dev Shape: A[k][l][i], де
+    ///      - k in [0, K) (рядки PolyVecK / t1 / w),
+    ///      - l in [0, L) (колонки PolyVecL / z),
+    ///      - i in [0, N) (коефіцієнти поліномів).
+    function _expandA_matrix_keccak(
+        bytes32 rho
+    )
+        internal
+        pure
+        returns (int32[6][5][256] memory A)
+    {
+        unchecked {
+            for (uint8 row = 0; row < MLDSA65_PolyVec.K; ++row) {
+                for (uint8 col = 0; col < MLDSA65_PolyVec.L; ++col) {
+                    // Отримаємо поліном a_{row,col}(x) через Keccak/FIPS-ExpandA.
+                    int32[256] memory poly =
+                        MLDSA65_ExpandA_KeccakFIPS204.expandA_poly(
+                            rho,
+                            row,
+                            col
+                        );
+
+                    for (uint256 i = 0; i < MLDSA65_PolyVec.N; ++i) {
+                        A[row][col][i] = poly[i];
+                    }
+                }
+            }
+        }
     }
 
     //
@@ -608,11 +638,11 @@ contract MLDSA65_Verifier_v2 {
     }
 
     //
-    // Structural placeholder for w = A * z - c * t1
+    // w = A * z - c * t1 (Keccak-based ExpandA)
     //
 
-    /// @notice Synthetic w = A·z - c·t1 in the NTT domain.
-    /// @dev A is generated via _expandA_poly_ntt (synthetic ExpandA),
+    /// @notice Compute w = A·z - c·t1 in the NTT domain using Keccak-based FIPS-204 ExpandA.
+    /// @dev A is generated via _expandA_poly_ntt (Keccak/FIPS-204 ExpandA backend),
     ///      z is converted to NTT once, c is expanded to a small challenge polynomial,
     ///      t1 is converted to NTT per row.
     ///      This is still NOT a full FIPS-204 verify pipeline: decomposition and hints are

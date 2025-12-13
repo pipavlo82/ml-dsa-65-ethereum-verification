@@ -1,0 +1,14 @@
+{
+  "vector": {
+    "name": "expandA_keccak_fips_kat_row0_col0",
+    "params": {
+      "k": 6,
+      "l": 5,
+      "n": 256,
+      "q": 8380417
+    },
+    "row": 0,
+    "col": 0,
+    "poly": [61726]
+  }
+}

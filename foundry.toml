@@ -20,7 +20,3 @@ solhint = { enabled = false }
 solfmt  = { enabled = false }
 solar   = { enabled = false }
 
-# На всяк випадок вимикаємо solar-config
-[profile.default.solar-config]
-enabled = false
-run     = false

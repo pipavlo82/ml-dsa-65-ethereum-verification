@@ -164,10 +164,6 @@ library MLDSA65_PolyVec {
         }
     }
 
-    // -----------------------------
-    //  Bridges int32[256] <-> uint256[256]
-    // -----------------------------
-
     // ---------------------------------------------------------------------
     // LEGACY int32 NTT path (unused in current verifier). Keep for old tests.
     // Prefer uint256 path: _toUQ + _nttU/_inttU for gas and clarity.
@@ -212,6 +208,36 @@ library MLDSA65_PolyVec {
                     r[i] = uint256(v);
                 }
             }
+        }
+    }
+
+    function _toUQ_into(int32[256] memory a, uint256[256] memory out) internal pure {
+        int256 q = int256(int32(Q));
+        unchecked {
+            for (uint256 i = 0; i < N; ++i) {
+                int256 v = int256(a[i]);
+                if (v >= 0 && v < q) {
+                    out[i] = uint256(v);
+                } else {
+                    v %= q;
+                    if (v < 0) v += q;
+                    out[i] = uint256(v);
+                }
+            }
+        }
+    }
+
+    function _nttU_into(uint256[256] memory a, uint256[256] memory out) internal pure {
+        uint256[256] memory r = NTT_MLDSA_Real.ntt(a);
+        unchecked {
+            for (uint256 i = 0; i < N; ++i) out[i] = r[i];
+        }
+    }
+
+    function _inttU_into(uint256[256] memory a, uint256[256] memory out) internal pure {
+        uint256[256] memory r = NTT_MLDSA_Real.intt(a);
+        unchecked {
+            for (uint256 i = 0; i < N; ++i) out[i] = r[i];
         }
     }
 
@@ -350,7 +376,7 @@ library MLDSA65_Hint {
 //
 
 /// @notice ML-DSA-65 Verifier v2 – skeleton for the real verification pipeline.
-/// @dev Currently contains: ABI, decode layer, synthetic ExpandA, and w = A·z - c·t1 with a synthetic challenge.
+/// @dev Currently contains: ABI, decode layer, Keccak/FIPS ExpandA, and w = A·z - c·t1.
 ///      Full FIPS-204 decomposition/hints are explicitly out-of-scope for this version.
 contract MLDSA65_Verifier_v2 {
     using MLDSA65_Poly for int32[256];
@@ -395,8 +421,9 @@ contract MLDSA65_Verifier_v2 {
     /// @notice Main verification entrypoint with basic structural checks.
     /// @dev This is NOT yet a full FIPS-204 verifier. Currently performs:
     ///      - Structural validation (lengths, c != 0, loose z norm)
-    ///      - Computes w = A·z - c·t1 using synthetic ExpandA and challenge
-    ///      TODO: Add FIPS-204 compliant decomposition, hints, and final challenge comparison.
+    ///      - Computes w = A·z - c·t1 (Keccak/FIPS ExpandA + NTT-domain)
+    ///      - Checks that challenge polynomial derived from signature seed equals
+    ///        the polynomial derived from message_digest (POC consistency)
     function verify(
         PublicKey memory pk,
         Signature memory sig,
@@ -416,18 +443,15 @@ contract MLDSA65_Verifier_v2 {
         }
 
         // 2) z must have coefficients within γ₁ bound.
-        //    This enforces |z_i| < γ₁ for all coefficients.
         if (!_checkZNormGamma1Bound(dsig)) {
             return false;
         }
 
-        // 3) Compute w = A*z - c*t1 (synthetic, uses keccak-based challenge and synthetic ExpandA).
+        // 3) Compute w = A*z - c*t1 (in NTT domain; decomposition/hints out of scope).
         MLDSA65_PolyVec.PolyVecK memory w = _compute_w(dpk, dsig);
-        w; // w поки що не використовуємо для перевірки декомпозиції
+        w; // unused until full decomposition/hints are wired
 
-        // 4) FIPS-style challenge consistency:
-        //    поліном з seed, що лежить у сигнатурі (dsig.c),
-        //    має збігатися з поліном із message_digest.
+        // 4) FIPS-style challenge consistency (POC):
         int32[256] memory c_from_sig = MLDSA65_Challenge.poly_challenge(dsig.c);
         int32[256] memory c_from_msg = MLDSA65_Challenge.poly_challenge(message_digest);
 
@@ -435,7 +459,6 @@ contract MLDSA65_Verifier_v2 {
             return false;
         }
 
-        // Усе пройшло: структура ок, норми ок, challenge seed узгоджений.
         return true;
     }
 
@@ -443,28 +466,24 @@ contract MLDSA65_Verifier_v2 {
     // Decode helpers – overloads for test compatibility
     //
 
-    /// @notice Decode public key from struct wrapper.
     function _decodePublicKey(
         PublicKey memory pk
     ) internal pure returns (DecodedPublicKey memory dpk) {
         return _decodePublicKeyRaw(pk.raw);
     }
 
-    /// @notice Decode public key directly from raw bytes (for old harnesses).
     function _decodePublicKey(
         bytes memory pkRaw
     ) internal pure returns (DecodedPublicKey memory dpk) {
         return _decodePublicKeyRaw(pkRaw);
     }
 
-    /// @notice Decode signature from struct wrapper.
     function _decodeSignature(
         Signature memory sig
     ) internal pure returns (DecodedSignature memory dsig) {
         return _decodeSignatureRaw(sig.raw);
     }
 
-    /// @notice Decode signature directly from raw bytes (for old harnesses).
     function _decodeSignature(
         bytes memory sigRaw
     ) internal pure returns (DecodedSignature memory dsig) {
@@ -477,8 +496,8 @@ contract MLDSA65_Verifier_v2 {
 
     /// @notice Decode public key bytes into a structured view.
     /// @dev Two modes:
-    /// - len >= PK_MIN_LEN (1952): full FIPS unpack t1 + rho (new path)
-    /// - len < PK_MIN_LEN: legacy mode (only rho + first 4 coeff t1[0] from offset 32)
+    /// - len >= PK_MIN_LEN (1952): full FIPS unpack t1 + rho
+    /// - len < PK_MIN_LEN: legacy mode (rho from last 32; first 4 coeffs from offset 32)
     function _decodePublicKeyRaw(
         bytes memory pkRaw
     ) internal pure returns (DecodedPublicKey memory dpk) {
@@ -499,7 +518,7 @@ contract MLDSA65_Verifier_v2 {
             return dpk;
         }
 
-        // 2) Legacy mode (old Decode* tests expect this behaviour).
+        // 2) Legacy mode.
 
         // rho = last 32 bytes, if available
         if (len >= 32) {
@@ -511,7 +530,7 @@ contract MLDSA65_Verifier_v2 {
             dpk.rho = rhoLegacy;
         }
 
-        // t1[0][0..3] — old FIPSPack mode:
+        // t1[0][0..3] — old harness behavior:
         // first 4 coefficients are taken from pkRaw[32..36] (5 bytes)
         if (len >= 32 + 5) {
             uint256 base = 32;
@@ -532,8 +551,6 @@ contract MLDSA65_Verifier_v2 {
             dpk.t1.polys[0][2] = int32(int16(t2c));
             dpk.t1.polys[0][3] = int32(int16(t3c));
         }
-
-        // if len < 32 or < 37 — simply return with default rho=0, t1=0
     }
 
     /// @dev Unpacks t1 from the first 1920 bytes of src into PolyVecK.
@@ -547,9 +564,7 @@ contract MLDSA65_Verifier_v2 {
 
         uint256 byteOffset = 0;
 
-        // K = 6 polynomials
         for (uint256 k = 0; k < MLDSA65_PolyVec.K; ++k) {
-            // 64 groups of 4 coefficients per polynomial
             for (uint256 group = 0; group < 64; ++group) {
                 uint256 idx = byteOffset;
 
@@ -577,10 +592,7 @@ contract MLDSA65_Verifier_v2 {
     }
 
     /// @notice Decode signature bytes into a structured view.
-    /// @dev Behaviour:
-    /// - if len >= 32: c = last 32 bytes; prefix before that = z (sequence of LE-coeffs)
-    /// - if len < 32: c remains 0; entire buffer is used for z
-    /// In all cases function MUST NOT revert on short signatures.
+    /// @dev MUST NOT revert on short signatures.
     function _decodeSignatureRaw(
         bytes memory sigRaw
     ) internal pure returns (DecodedSignature memory dsig) {
@@ -605,8 +617,6 @@ contract MLDSA65_Verifier_v2 {
             for (uint256 j = 0; j < MLDSA65_PolyVec.L && idx < coeffCount; ++j) {
                 for (uint256 i = 0; i < MLDSA65_PolyVec.N && idx < coeffCount; ++i) {
                     uint256 off = idx * 4;
-                    // off + 4 is always <= sigRaw.length thanks to:
-                    // idx < coeffCount = floor(coeffBytes/4) and coeffBytes <= len.
                     int32 coeff = _decodeCoeffLE(sigRaw, off);
                     dsig.z.polys[j][i] = coeff;
                     unchecked {
@@ -616,15 +626,10 @@ contract MLDSA65_Verifier_v2 {
             }
         }
 
-        // 3) h remains zero (HintVecK defaults to all zeros)
+        // 3) h remains zero (defaults)
     }
 
-    //
-    // Low-level coeff decode
-    //
-
     /// @notice Decode a single coefficient from 4 bytes in little-endian order, reduced mod Q.
-    /// @dev Low-level helper; will also be used in real FIPS-204 packing.
     function _decodeCoeffLE(
         bytes memory src,
         uint256 offset
@@ -647,8 +652,6 @@ contract MLDSA65_Verifier_v2 {
     // Keccak-based FIPS-204 ExpandA(rho)
     //
 
-    /// @notice A[row][col] polynomial in the time domain via Keccak/XOF FIPS-204 ExpandA.
-    /// @dev This is the real FIPS-204-compatible backend, not the earlier synthetic helper.
     function _expandA_poly(
         bytes32 rho,
         uint8 row,
@@ -660,21 +663,15 @@ contract MLDSA65_Verifier_v2 {
         a = MLDSA65_ExpandA_KeccakFIPS204.expandA_poly(rho, row, col);
     }
 
-    /// @notice A[row][col] poly in NTT domain (Keccak backend).
-    /// @dev Uses time-domain Keccak ExpandA + a single poly-level NTT.
     function _expandA_poly_ntt(
         bytes32 rho,
         uint8 row,
         uint8 col
     ) internal pure returns (int32[256] memory a_ntt) {
-        // 1) A в time-domain через Keccak/FIPS-204 ExpandA
         int32[256] memory a = _expandA_poly(rho, row, col);
-        // 2) Один-єдиний NTT для цього полінома
         a_ntt = MLDSA65_PolyVec._nttPoly(a);
     }
 
-    /// @notice A[row][col] poly in NTT domain using uint256 arithmetic (Keccak backend).
-    /// @dev More efficient version using uint256 operations throughout.
     function _expandA_poly_ntt_u(
         bytes32 rho,
         uint8 row,
@@ -685,11 +682,17 @@ contract MLDSA65_Verifier_v2 {
         a_ntt_u = MLDSA65_PolyVec._nttU(au);
     }
 
-    /// @notice Keccak-based FIPS-shape ExpandA: full matrix A(rho) via Keccak/XOF backend.
-    /// @dev Shape: A[k][l][i], де
-    ///      - k in [0, K) (рядки PolyVecK / t1 / w),
-    ///      - l in [0, L) (колонки PolyVecL / z),
-    ///      - i in [0, N) (коефіцієнти поліномів).
+    function _expandA_poly_ntt_u_into(
+        bytes32 rho,
+        uint8 row,
+        uint8 col,
+        uint256[256] memory out_ntt_u
+    ) internal pure {
+        int32[256] memory a = _expandA_poly(rho, row, col);
+        uint256[256] memory tmp_u = MLDSA65_PolyVec._toUQ(a);
+        MLDSA65_PolyVec._nttU_into(tmp_u, out_ntt_u);
+    }
+
     function _expandA_matrix_keccak(
         bytes32 rho
     )
@@ -700,13 +703,8 @@ contract MLDSA65_Verifier_v2 {
         unchecked {
             for (uint8 row = 0; row < MLDSA65_PolyVec.K; ++row) {
                 for (uint8 col = 0; col < MLDSA65_PolyVec.L; ++col) {
-                    // Отримаємо поліном a_{row,col}(x) через Keccak/FIPS-ExpandA.
                     int32[256] memory poly =
-                        MLDSA65_ExpandA_KeccakFIPS204.expandA_poly(
-                            rho,
-                            row,
-                            col
-                        );
+                        MLDSA65_ExpandA_KeccakFIPS204.expandA_poly(rho, row, col);
 
                     for (uint256 i = 0; i < MLDSA65_PolyVec.N; ++i) {
                         A[row][col][i] = poly[i];
@@ -720,8 +718,6 @@ contract MLDSA65_Verifier_v2 {
     // Temporary norm check for z (POC-level)
     //
 
-    /// @notice Bound check on z coefficients using γ₁ ≈ 2¹⁹.
-    /// @dev Placeholder for the final FIPS-204 ||z||∞ < γ₁ - β check.
     function _checkZNormGamma1Bound(
         DecodedSignature memory dsig
     ) internal pure returns (bool) {
@@ -739,9 +735,6 @@ contract MLDSA65_Verifier_v2 {
         return true;
     }
 
-    //
-    // Helper: equality of int32[256] polynomials
-    //
     function _polyEq(
         int32[256] memory a,
         int32[256] memory b
@@ -758,12 +751,6 @@ contract MLDSA65_Verifier_v2 {
     // w = A * z - c * t1 (Keccak-based ExpandA)
     //
 
-    /// @notice Compute w = A·z - c·t1 in the NTT domain using Keccak-based FIPS-204 ExpandA.
-    /// @dev A is generated via _expandA_poly_ntt (Keccak/FIPS-204 ExpandA backend),
-    ///      z is converted to NTT once, c is expanded to a small challenge polynomial,
-    ///      t1 is converted to NTT per row.
-    ///      This is still NOT a full FIPS-204 verify pipeline: decomposition and hints are
-    ///      explicitly left out-of-scope for this contract version.
     function _compute_w(
         DecodedPublicKey memory dpk,
         DecodedSignature memory dsig
@@ -786,63 +773,85 @@ contract MLDSA65_Verifier_v2 {
             c_ntt_u = MLDSA65_PolyVec._nttU(cu);
         }
 
-        // 2.5) t1_ntt_u[k] - pre-compute once to avoid redundant NTT calls
+        // 2.5) t1_ntt_u[k] - pre-compute once
         uint256[256][6] memory t1_ntt_u;
-        for (uint256 k = 0; k < 6; ++k) {
+        for (uint256 k = 0; k < MLDSA65_PolyVec.K; ++k) {
             uint256[256] memory t1u = MLDSA65_PolyVec._toUQ(dpk.t1.polys[k]);
             t1_ntt_u[k] = MLDSA65_PolyVec._nttU(t1u);
         }
-
-        // 2.6) Pre-compute constants for modular arithmetic and final conversion
-        uint256 q = MLDSA65_PolyU.Q;
-        uint256 qU = MLDSA65_PolyU.Q;
 
         // 3) for each row k
         for (uint256 k = 0; k < MLDSA65_PolyVec.K; ++k) {
             uint256[256] memory acc_ntt_u;
 
-            // A·z (fused multiply-add) using inline assembly
+            // Phase 8.x:
+            // A·z, and fuse -c·t1 only once in the last column (j == L-1)
             for (uint256 j = 0; j < MLDSA65_PolyVec.L; ++j) {
                 uint256[256] memory a_ntt_u = _expandA_poly_ntt_u(rho, uint8(k), uint8(j));
 
-                assembly {
-                    // pointers to arrays (each is 256 * 32 bytes)
-                    let accPtr := acc_ntt_u
-                    let aPtr   := a_ntt_u
+                if (hasChallenge && j == (MLDSA65_PolyVec.L - 1)) {
+                    assembly {
+                        let q := 8380417
 
-                    // z_ntt_u: outer array holds pointers to inner uint256[256]
-                    let zPtr := mload(add(z_ntt_u, mul(j, 0x20)))
+                        let accPtr := acc_ntt_u
+                        let aPtr   := a_ntt_u
+                        let zPtr   := mload(add(z_ntt_u, mul(j, 0x20)))
+                        let cPtr   := c_ntt_u
+                        let t1Ptr  := mload(add(t1_ntt_u, mul(k, 0x20)))
 
-                    // loop 256 words
-                    for { let off := 0 } lt(off, 0x2000) { off := add(off, 0x20) } {
-                        let accv := mload(add(accPtr, off))
-                        let av   := mload(add(aPtr,   off))
-                        let zv   := mload(add(zPtr,   off))
-                        let prod := mulmod(av, zv, q)
-                        accv := addmod(accv, prod, q)
-                        mstore(add(accPtr, off), accv)
+                        for { let off := 0 } lt(off, 0x2000) { off := add(off, 0x40) } {
+                            // lane0
+                            {
+                                let accv := mload(add(accPtr, off))
+
+                                let prod := mulmod(mload(add(aPtr, off)), mload(add(zPtr, off)), q)
+                                accv := addmod(accv, prod, q)
+
+                                let term := mulmod(mload(add(cPtr, off)), mload(add(t1Ptr, off)), q)
+                                accv := addmod(accv, sub(q, term), q)
+
+                                mstore(add(accPtr, off), accv)
+                            }
+                            // lane1
+                            {
+                                let off1 := add(off, 0x20)
+                                let accv := mload(add(accPtr, off1))
+
+                                let prod := mulmod(mload(add(aPtr, off1)), mload(add(zPtr, off1)), q)
+                                accv := addmod(accv, prod, q)
+
+                                let term := mulmod(mload(add(cPtr, off1)), mload(add(t1Ptr, off1)), q)
+                                accv := addmod(accv, sub(q, term), q)
+
+                                mstore(add(accPtr, off1), accv)
+                            }
+                        }
                     }
-                }
-            }
+                } else {
+                    assembly {
+                        let q := 8380417
 
-            // - c·t1 using inline assembly
-            if (hasChallenge) {
-                assembly {
-                    let accPtr := acc_ntt_u
-                    let cPtr   := c_ntt_u
+                        let accPtr := acc_ntt_u
+                        let aPtr   := a_ntt_u
+                        let zPtr   := mload(add(z_ntt_u, mul(j, 0x20)))
 
-                    // t1_ntt_u: outer array holds pointers to inner uint256[256]
-                    let t1Ptr := mload(add(t1_ntt_u, mul(k, 0x20)))
-
-                    for { let off := 0 } lt(off, 0x2000) { off := add(off, 0x20) } {
-                        let accv := mload(add(accPtr, off))
-                        let cv   := mload(add(cPtr,   off))
-                        let tv   := mload(add(t1Ptr,  off))
-                        let term := mulmod(cv, tv, q)
-
-                        // acc = acc + (q - term) mod q
-                        accv := addmod(accv, sub(q, term), q)
-                        mstore(add(accPtr, off), accv)
+                        for { let off := 0 } lt(off, 0x2000) { off := add(off, 0x40) } {
+                            // lane0
+                            {
+                                let accv := mload(add(accPtr, off))
+                                let prod := mulmod(mload(add(aPtr, off)), mload(add(zPtr, off)), q)
+                                accv := addmod(accv, prod, q)
+                                mstore(add(accPtr, off), accv)
+                            }
+                            // lane1
+                            {
+                                let off1 := add(off, 0x20)
+                                let accv := mload(add(accPtr, off1))
+                                let prod := mulmod(mload(add(aPtr, off1)), mload(add(zPtr, off1)), q)
+                                accv := addmod(accv, prod, q)
+                                mstore(add(accPtr, off1), accv)
+                            }
+                        }
                     }
                 }
             }
@@ -850,9 +859,10 @@ contract MLDSA65_Verifier_v2 {
             // Back to time domain
             uint256[256] memory w_u = MLDSA65_PolyVec._inttU(acc_ntt_u);
 
-            // convert to int32 (0..q-1 reps)
+            // Phase 8.2: inttU already yields residues in [0, Q),
+            // so `% Q` is redundant. Q < 2^32, cast is safe.
             for (uint256 i = 0; i < MLDSA65_PolyVec.N; ++i) {
-                w.polys[k][i] = int32(int256(w_u[i] % qU));
+                w.polys[k][i] = int32(uint32(w_u[i]));
             }
         }
 

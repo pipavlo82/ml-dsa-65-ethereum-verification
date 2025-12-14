@@ -1,12 +1,15 @@
 # ML-DSA-65 Ethereum Verification
 
-[![Solidity](https://img.shields.io/badge/Solidity-0.8.20-blue)](https://soliditylang.org/)
+[![Solidity](https://img.shields.io/badge/Solidity-%5E0.8.20-blue)](https://soliditylang.org/)
 [![Foundry](https://img.shields.io/badge/Foundry-tested-green)](https://getfoundry.sh/)
 [![FIPS-204](https://img.shields.io/badge/FIPS--204-ML--DSA--65-purple)](https://csrc.nist.gov/pubs/fips/204/final)
-[![Tests: 65/65](https://img.shields.io/badge/Tests-65%2F65%20passing-brightgreen)]()
-[![Gas: 120M (synthetic)](https://img.shields.io/badge/Gas-120M%20synthetic-orange)]()
-[![Gas: 141M (FIPS-204 est.)](https://img.shields.io/badge/Gas-141M%20FIPS--204%20est.-red)]()
+[![Tests](https://img.shields.io/badge/Tests-72%2F72%20passing-brightgreen)]()
+[![Gas](https://img.shields.io/badge/Gas-verify__poc%20~80.0M-orange)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+**Status:** Active development; end-to-end verify() POC + gas harness; Foundry suite green (72/72).  
+**Latest snapshot:** `test_verify_gas_poc = 80,000,775` gas; logged verify() POC ≈ `79,257,687`.
+
 
 **Status:** Active development – FIPS-204 pipeline online, 64/64 tests passing  
 **License:** MIT
@@ -272,36 +275,29 @@ The main verifier entrypoints live in:
 
 ## Gas Benchmarks
 
-### Current implementation (synthetic ExpandA path)
 
-| Component | Gas (approx.) | Notes |
-|-----------|---------------|-------|
-| **Core operations** |||
-| Single NTT (256 coeffs) | ~2–3M | Cooley–Tukey, unoptimized |
-| Single INTT (256 coeffs) | ~2–3M | Gentleman–Sande |
-| NTT roundtrip (basis vectors) | ~46M | Full 256-element test |
-| **ExpandA variants** |||
-| Synthetic single poly | ~5K | Arithmetic-only stub |
-| Keccak single poly | ~380–680K | SHAKE-based, FIPS-shape |
-| Keccak full matrix (30 polys) | ~20.7M | Measured K×L generation |
-| **Matrix operations** |||
-| `w = A·z` (no challenge) | ~97.7M | Matrix–vector only |
-| `w = A·z − c·t1` | ~114.4M | Full computation |
-| **Full verification** |||
-| `verify()` POC (synthetic) | **~120M** | Current baseline |
+---Current measured baseline (Verifier POC on feature/mldsa-ntt-opt, Phase 7)
+Component	Gas (measured)	Notes
+verify() POC (decode + checks + w = A·z − c·t1)	80,000,775	MLDSA_VerifyGas_Test:test_verify_gas_poc() snapshot
+Logged verify() POC	~79.26M	runtime log from the same test
+compute_w (A·z − c·t1)	~75.81M	dominant term
+decode_pk	~1.16M	breakdown harness
+decode_sig	~1.93M	breakdown harness
+check_z_norm	~1.08M	breakdown harness
+Micro-benchmarks (keep as “order-of-magnitude”, because they vary by harness)
+Component	Gas (approx.)	Notes
+Single NTT (256 coeffs)	~1.15M	from NTT_MLDSA_Real_GasMicro
+Single INTT (256 coeffs)	~1.22M	from NTT_MLDSA_Real_GasMicro
+Keccak ExpandA matrix (30 polys)	~20.7M	measured in your Keccak matrix harness
+FIPS-204 path (how to state it without hand-wavy numbers)
 
-### Estimated FIPS-204 (with Keccak ExpandA)
+Instead of hardcoding ~141M and “+17%”, write it like this until you have a measured forge snapshot:
 
-| Component | Estimated Gas | vs synthetic |
-|-----------|---------------|--------------|
-| `verify()` with FIPS-204 ExpandA | **~141M** | +17% |
-| Extra cost from SHAKE | ~+20.7M | FIPS-correct crypto |
-| vs naive baseline | **−69%** | (452M → ~141M) |
+Component	Gas	Notes
+verify() with FIPS-204 ExpandA + strict sampling	TBD (measured)	must be reported from the same MLDSA_VerifyGas_Test-style snapshot
+Extra cost attributable to Keccak/SHAKE ExpandA	~20.7M	measured cost to generate full matrix; integration overhead may differ
 
-**Key insight:** Full FIPS-204 compliance adds ≈17% overhead vs the synthetic path,
-while preserving ≈69% improvement over the naive implementation.
-
----
+Key insight (safe wording): The verifier POC is currently dominated by compute_w (≈75.8M gas). Once the fully FIPS-204 ExpandA path is wired end-to-end, the incremental Keccak/SHAKE cost can be quantified directly from snapshots (rather than estimated).
 
 ## Optimization Journey
 
@@ -309,26 +305,43 @@ This implementation reflects several rounds of optimization:
 
 ### Gas reduction timeline
 
-1. **Baseline (naive):** ~452M gas  
-   - Dense NTT calls in matrix operations  
-   - Multiple redundant transforms
+Baseline (naive): ~452M gas
 
-2. **Optimisation phase 1:** 452M → ~120M (≈−73%)  
-   - Eliminated redundant NTT/INTT calls  
-   - `_expandA_poly_ntt`: 5 NTT → 1 NTT per polynomial  
-   - `_compute_w`: 5 INTT → 1 INTT per row  
-   - ~144 unnecessary transforms removed
+Dense NTT/INTT usage inside matrix operations
 
-3. **Current (synthetic path):** ~120M gas  
-   - Arithmetic-only ExpandA stub for testing  
-   - Optimised NTT/INTT pipeline  
-   - Baseline for comparison
+Multiple redundant transforms and intermediate materialization
 
-4. **Target (FIPS-204 path):** ~141M gas (estimated)  
-   - Replace synthetic ExpandA with SHAKE-based ExpandA  
-   - Full cryptographic correctness  
-   - ~17% overhead for FIPS compliance
+Optimization Phase 1 (transform elimination): ~452M → ~120M (≈−73%)
 
+Removed redundant NTT/INTT calls in the algebraic pipeline
+
+_expandA_poly_ntt: 5 NTT → 1 NTT per polynomial
+
+_compute_w: 5 INTT → 1 INTT per row
+
+~144 unnecessary transforms eliminated
+
+Phase 5 baseline (pre-Phase7, verifier POC): 81,630,615 gas
+
+Stable end-to-end verify() POC harness and snapshot
+
+Bottleneck clearly isolated to compute_w (A·z − c·t1)
+
+Phase 7 (current, fused asm compute_w): 80,000,775 gas (≈−1.63M vs Phase 5)
+
+Replaced the inner 256-coefficient addmod/mulmod loops in _compute_w with an inline-assembly row-pointer walk over NTT-domain rows
+
+Fixed matrixvec memory-layout pitfall by loading row pointers (outer arrays are pointers-to-rows, not a flat stride)
+
+Current breakdown (latest harness): decode_pk ≈ 1.16M; decode_sig ≈ 1.93M; z_norm ≈ 1.08M; compute_w ≈ 75.81M
+
+Next target (Phase 8): push compute_w down further
+
+Primary lever: remove addmod/submod in hot loops (use conditional reduction since operands are already < q)
+
+Secondary levers: unroll inner loop, keep everything in uint256 mod q, and avoid function calls/allocations on the critical path
+
+Note: the “FIPS-204 path” number should be stated only once it’s measured by the same forge snapshot harness on the fully FIPS-strict ExpandA/challenge path (not an estimate).
 ### Design rationale
 
 - **Synthetic ExpandA** provides:

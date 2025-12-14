@@ -813,14 +813,23 @@ contract MLDSA65_Verifier_v2 {
                     // z_ntt_u: outer array holds pointers to inner uint256[256]
                     let zPtr := mload(add(z_ntt_u, mul(j, 0x20)))
 
-                    // loop 256 words
-                    for { let off := 0 } lt(off, 0x2000) { off := add(off, 0x20) } {
-                        let accv := mload(add(accPtr, off))
-                        let av   := mload(add(aPtr,   off))
-                        let zv   := mload(add(zPtr,   off))
-                        let prod := mulmod(av, zv, q)
-                        accv := addmod(accv, prod, q)
-                        mstore(add(accPtr, off), accv)
+                    // loop unrolled ×2: process 2 elements per iteration
+                    for { let off := 0 } lt(off, 0x2000) { off := add(off, 0x40) } {
+                        // lane0 @ off
+                        {
+                            let accv := mload(add(accPtr, off))
+                            let prod := mulmod(mload(add(aPtr, off)), mload(add(zPtr, off)), q)
+                            accv := addmod(accv, prod, q)
+                            mstore(add(accPtr, off), accv)
+                        }
+                        // lane1 @ off + 0x20
+                        {
+                            let off1 := add(off, 0x20)
+                            let accv := mload(add(accPtr, off1))
+                            let prod := mulmod(mload(add(aPtr, off1)), mload(add(zPtr, off1)), q)
+                            accv := addmod(accv, prod, q)
+                            mstore(add(accPtr, off1), accv)
+                        }
                     }
                 }
             }
@@ -834,15 +843,23 @@ contract MLDSA65_Verifier_v2 {
                     // t1_ntt_u: outer array holds pointers to inner uint256[256]
                     let t1Ptr := mload(add(t1_ntt_u, mul(k, 0x20)))
 
-                    for { let off := 0 } lt(off, 0x2000) { off := add(off, 0x20) } {
-                        let accv := mload(add(accPtr, off))
-                        let cv   := mload(add(cPtr,   off))
-                        let tv   := mload(add(t1Ptr,  off))
-                        let term := mulmod(cv, tv, q)
-
-                        // acc = acc + (q - term) mod q
-                        accv := addmod(accv, sub(q, term), q)
-                        mstore(add(accPtr, off), accv)
+                    // loop unrolled ×2: process 2 elements per iteration
+                    for { let off := 0 } lt(off, 0x2000) { off := add(off, 0x40) } {
+                        // lane0 @ off
+                        {
+                            let accv := mload(add(accPtr, off))
+                            let term := mulmod(mload(add(cPtr, off)), mload(add(t1Ptr, off)), q)
+                            accv := addmod(accv, sub(q, term), q)
+                            mstore(add(accPtr, off), accv)
+                        }
+                        // lane1 @ off + 0x20
+                        {
+                            let off1 := add(off, 0x20)
+                            let accv := mload(add(accPtr, off1))
+                            let term := mulmod(mload(add(cPtr, off1)), mload(add(t1Ptr, off1)), q)
+                            accv := addmod(accv, sub(q, term), q)
+                            mstore(add(accPtr, off1), accv)
+                        }
                     }
                 }
             }

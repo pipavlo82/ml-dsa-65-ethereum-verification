@@ -725,8 +725,9 @@ contract MLDSA65_Verifier_v2 {
         uint256[256] memory out_ntt_u
     ) internal pure {
         int32[256] memory a = _expandA_poly(rho, row, col);
-        uint256[256] memory tmp_u;
-        MLDSA65_PolyVec._toUQ_into(a, tmp_u);
+
+        // IMPORTANT: ensure tmp_u is allocated deterministically (avoid any "uninitialized memory" pitfalls)
+        uint256[256] memory tmp_u = MLDSA65_PolyVec._toUQ(a);
         MLDSA65_PolyVec._nttU_into(tmp_u, out_ntt_u);
     }
 
@@ -804,9 +805,9 @@ contract MLDSA65_Verifier_v2 {
     //
 
     /// @notice Compute w = A·z - c·t1 in the NTT domain using Keccak-based FIPS-204 ExpandA.
-    /// @dev A is generated via _expandA_poly_ntt (Keccak/FIPS-204 ExpandA backend),
+    /// @dev A is generated via Keccak/FIPS-204 ExpandA backend,
     ///      z is converted to NTT once, c is expanded to a small challenge polynomial,
-    ///      t1 is converted to NTT per row.
+    ///      t1 is converted to NTT once per row.
     ///      This is still NOT a full FIPS-204 verify pipeline: decomposition and hints are
     ///      explicitly left out-of-scope for this contract version.
     function _compute_w(
@@ -833,77 +834,82 @@ contract MLDSA65_Verifier_v2 {
 
         // 2.5) t1_ntt_u[k] - pre-compute once to avoid redundant NTT calls
         uint256[256][6] memory t1_ntt_u;
-        for (uint256 k = 0; k < 6; ++k) {
+        for (uint256 k = 0; k < MLDSA65_PolyVec.K; ++k) {
             uint256[256] memory t1u = MLDSA65_PolyVec._toUQ(dpk.t1.polys[k]);
             t1_ntt_u[k] = MLDSA65_PolyVec._nttU(t1u);
         }
-
-        // 2.6) Pre-compute constants for modular arithmetic and final conversion
-        uint256 q = MLDSA65_PolyU.Q;
-        uint256 qU = MLDSA65_PolyU.Q;
 
         // 3) for each row k
         for (uint256 k = 0; k < MLDSA65_PolyVec.K; ++k) {
             uint256[256] memory acc_ntt_u;
 
-            // A·z (fused multiply-add) using inline assembly
+            // Phase 8.2 (stack-light):
+            // A·z, and fuse -c·t1 only once in the last column (j == L-1)
             for (uint256 j = 0; j < MLDSA65_PolyVec.L; ++j) {
                 uint256[256] memory a_ntt_u = _expandA_poly_ntt_u(rho, uint8(k), uint8(j));
 
-                assembly {
-                    // pointers to arrays (each is 256 * 32 bytes)
-                    let accPtr := acc_ntt_u
-                    let aPtr   := a_ntt_u
+                if (hasChallenge && j == (MLDSA65_PolyVec.L - 1)) {
+                    assembly {
+                        let q := 8380417
 
-                    // z_ntt_u: outer array holds pointers to inner uint256[256]
-                    let zPtr := mload(add(z_ntt_u, mul(j, 0x20)))
+                        let accPtr := acc_ntt_u
+                        let aPtr   := a_ntt_u
+                        let zPtr   := mload(add(z_ntt_u, mul(j, 0x20)))
+                        let cPtr   := c_ntt_u
+                        let t1Ptr  := mload(add(t1_ntt_u, mul(k, 0x20)))
 
-                    // loop unrolled ×2: process 2 elements per iteration
-                    for { let off := 0 } lt(off, 0x2000) { off := add(off, 0x40) } {
-                        // lane0 @ off
-                        {
-                            let accv := mload(add(accPtr, off))
-                            let prod := mulmod(mload(add(aPtr, off)), mload(add(zPtr, off)), q)
-                            accv := addmod(accv, prod, q)
-                            mstore(add(accPtr, off), accv)
-                        }
-                        // lane1 @ off + 0x20
-                        {
-                            let off1 := add(off, 0x20)
-                            let accv := mload(add(accPtr, off1))
-                            let prod := mulmod(mload(add(aPtr, off1)), mload(add(zPtr, off1)), q)
-                            accv := addmod(accv, prod, q)
-                            mstore(add(accPtr, off1), accv)
+                        for { let off := 0 } lt(off, 0x2000) { off := add(off, 0x40) } {
+                            // lane0
+                            {
+                                let accv := mload(add(accPtr, off))
+
+                                let prod := mulmod(mload(add(aPtr, off)), mload(add(zPtr, off)), q)
+                                accv := addmod(accv, prod, q)
+
+                                let term := mulmod(mload(add(cPtr, off)), mload(add(t1Ptr, off)), q)
+                                accv := addmod(accv, sub(q, term), q)
+
+                                mstore(add(accPtr, off), accv)
+                            }
+                            // lane1
+                            {
+                                let off1 := add(off, 0x20)
+                                let accv := mload(add(accPtr, off1))
+
+                                let prod := mulmod(mload(add(aPtr, off1)), mload(add(zPtr, off1)), q)
+                                accv := addmod(accv, prod, q)
+
+                                let term := mulmod(mload(add(cPtr, off1)), mload(add(t1Ptr, off1)), q)
+                                accv := addmod(accv, sub(q, term), q)
+
+                                mstore(add(accPtr, off1), accv)
+                            }
                         }
                     }
-                }
-            }
+                } else {
+                    assembly {
+                        let q := 8380417
 
-            // - c·t1 using inline assembly
-            if (hasChallenge) {
-                assembly {
-                    let accPtr := acc_ntt_u
-                    let cPtr   := c_ntt_u
+                        let accPtr := acc_ntt_u
+                        let aPtr   := a_ntt_u
+                        let zPtr   := mload(add(z_ntt_u, mul(j, 0x20)))
 
-                    // t1_ntt_u: outer array holds pointers to inner uint256[256]
-                    let t1Ptr := mload(add(t1_ntt_u, mul(k, 0x20)))
-
-                    // loop unrolled ×2: process 2 elements per iteration
-                    for { let off := 0 } lt(off, 0x2000) { off := add(off, 0x40) } {
-                        // lane0 @ off
-                        {
-                            let accv := mload(add(accPtr, off))
-                            let term := mulmod(mload(add(cPtr, off)), mload(add(t1Ptr, off)), q)
-                            accv := addmod(accv, sub(q, term), q)
-                            mstore(add(accPtr, off), accv)
-                        }
-                        // lane1 @ off + 0x20
-                        {
-                            let off1 := add(off, 0x20)
-                            let accv := mload(add(accPtr, off1))
-                            let term := mulmod(mload(add(cPtr, off1)), mload(add(t1Ptr, off1)), q)
-                            accv := addmod(accv, sub(q, term), q)
-                            mstore(add(accPtr, off1), accv)
+                        for { let off := 0 } lt(off, 0x2000) { off := add(off, 0x40) } {
+                            // lane0
+                            {
+                                let accv := mload(add(accPtr, off))
+                                let prod := mulmod(mload(add(aPtr, off)), mload(add(zPtr, off)), q)
+                                accv := addmod(accv, prod, q)
+                                mstore(add(accPtr, off), accv)
+                            }
+                            // lane1
+                            {
+                                let off1 := add(off, 0x20)
+                                let accv := mload(add(accPtr, off1))
+                                let prod := mulmod(mload(add(aPtr, off1)), mload(add(zPtr, off1)), q)
+                                accv := addmod(accv, prod, q)
+                                mstore(add(accPtr, off1), accv)
+                            }
                         }
                     }
                 }
@@ -914,7 +920,7 @@ contract MLDSA65_Verifier_v2 {
 
             // convert to int32 (0..q-1 reps)
             for (uint256 i = 0; i < MLDSA65_PolyVec.N; ++i) {
-                w.polys[k][i] = int32(int256(w_u[i] % qU));
+                w.polys[k][i] = int32(int256(w_u[i] % MLDSA65_PolyU.Q));
             }
         }
 

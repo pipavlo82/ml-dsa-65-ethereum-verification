@@ -919,8 +919,9 @@ contract MLDSA65_Verifier_v2 {
             uint256[256] memory w_u = MLDSA65_PolyVec._inttU(acc_ntt_u);
 
             // convert to int32 (0..q-1 reps)
+            // Phase8.2: inttU already returns reduced mod q, so avoid redundant `% q`.
             for (uint256 i = 0; i < MLDSA65_PolyVec.N; ++i) {
-                w.polys[k][i] = int32(int256(w_u[i] % MLDSA65_PolyU.Q));
+                w.polys[k][i] = int32(uint32(w_u[i]));
             }
         }
 

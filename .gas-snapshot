@@ -70,4 +70,3 @@ NTT_MLDSA_Real_Test:test_NTT_Real_StructureRuns() (gas: 2465276)
 NTT_MLDSA_Structure_Test:test_NTT_RoundtripBasisVectors() (gas: 858767)
 NTT_MLDSA_Structure_Test:test_NTT_RoundtripRandom() (gas: 185411)
 NTT_MLDSA_Structure_Test:test_NTT_StructureRuns() (gas: 139029)
-

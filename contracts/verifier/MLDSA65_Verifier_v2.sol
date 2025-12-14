@@ -215,6 +215,36 @@ library MLDSA65_PolyVec {
         }
     }
 
+    function _toUQ_into(int32[256] memory a, uint256[256] memory out) internal pure {
+        int256 q = int256(int32(Q));
+        unchecked {
+            for (uint256 i = 0; i < N; ++i) {
+                int256 v = int256(a[i]);
+                if (v >= 0 && v < q) {
+                    out[i] = uint256(v);
+                } else {
+                    v %= q;
+                    if (v < 0) v += q;
+                    out[i] = uint256(v);
+                }
+            }
+        }
+    }
+
+    function _nttU_into(uint256[256] memory a, uint256[256] memory out) internal pure {
+        uint256[256] memory r = NTT_MLDSA_Real.ntt(a);
+        unchecked {
+            for (uint256 i = 0; i < N; ++i) out[i] = r[i];
+        }
+    }
+
+    function _inttU_into(uint256[256] memory a, uint256[256] memory out) internal pure {
+        uint256[256] memory r = NTT_MLDSA_Real.intt(a);
+        unchecked {
+            for (uint256 i = 0; i < N; ++i) out[i] = r[i];
+        }
+    }
+
     function _nttU(uint256[256] memory a) internal pure returns (uint256[256] memory r) {
         r = NTT_MLDSA_Real.ntt(a);
     }
@@ -683,6 +713,21 @@ contract MLDSA65_Verifier_v2 {
         int32[256] memory a = _expandA_poly(rho, row, col);
         uint256[256] memory au = MLDSA65_PolyVec._toUQ(a);
         a_ntt_u = MLDSA65_PolyVec._nttU(au);
+    }
+
+    /// @notice A[row][col] poly in NTT domain using uint256 arithmetic (in-place version).
+    /// @dev Memory-optimized version that writes directly to pre-allocated output array.
+    ///      Allows reusing the same workspace across multiple ExpandA calls.
+    function _expandA_poly_ntt_u_into(
+        bytes32 rho,
+        uint8 row,
+        uint8 col,
+        uint256[256] memory out_ntt_u
+    ) internal pure {
+        int32[256] memory a = _expandA_poly(rho, row, col);
+        uint256[256] memory tmp_u;
+        MLDSA65_PolyVec._toUQ_into(a, tmp_u);
+        MLDSA65_PolyVec._nttU_into(tmp_u, out_ntt_u);
     }
 
     /// @notice Keccak-based FIPS-shape ExpandA: full matrix A(rho) via Keccak/XOF backend.

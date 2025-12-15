@@ -22,7 +22,11 @@ contract MLDSA_Verify_POC_Test is Test {
     /// @dev Мінімальна сигнатура:
     ///  - перші 32 байти: z (усі нулі → точно в межах γ₁)
     ///  - останні 32 байти: seed для challenge c.
-    function _makeSig(bytes32 cSeed) internal pure returns (MLDSA65_Verifier_v2.Signature memory sig) {
+    function _makeSig(bytes32 cSeed)
+        internal
+        pure
+        returns (MLDSA65_Verifier_v2.Signature memory sig)
+    {
         bytes memory sigRaw = abi.encodePacked(bytes32(0), cSeed);
         sig.raw = sigRaw;
         return sig;

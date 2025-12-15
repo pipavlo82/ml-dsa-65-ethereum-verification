@@ -28,7 +28,11 @@ contract MLDSA_VerifyGas_Test is Test {
         return pk;
     }
 
-    function _makeSigForGas() internal pure returns (MLDSA65_Verifier_v2.Signature memory sig, bytes32 cSeed) {
+    function _makeSigForGas()
+        internal
+        pure
+        returns (MLDSA65_Verifier_v2.Signature memory sig, bytes32 cSeed)
+    {
         // Повноцінний FIPS-розмір сигнатури ML-DSA-65: 3309 байтів
         bytes memory raw = new bytes(3309);
 

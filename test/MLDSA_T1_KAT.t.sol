@@ -7,7 +7,11 @@ import "../contracts/verifier/MLDSA65_Verifier_v2.sol";
 
 /// @notice Harness to expose public key decode for KAT tests.
 contract MLDSA_T1_KAT_Harness is MLDSA65_Verifier_v2 {
-    function exposedDecodePublicKey(bytes memory raw) external pure returns (DecodedPublicKey memory) {
+    function exposedDecodePublicKey(bytes memory raw)
+        external
+        pure
+        returns (DecodedPublicKey memory)
+    {
         PublicKey memory pk = PublicKey({raw: raw});
         return _decodePublicKey(pk);
     }
@@ -43,7 +47,8 @@ contract MLDSA_T1_KAT_Test is Test {
         for (uint256 k = 0; k < K; ++k) {
             for (uint256 i = 0; i < N; ++i) {
                 // шлях типу: .t1[0][0], .t1[0][1], ..., .t1[5][255]
-                string memory key = string(abi.encodePacked(".t1[", vm.toString(k), "][", vm.toString(i), "]"));
+                string memory key =
+                    string(abi.encodePacked(".t1[", vm.toString(k), "][", vm.toString(i), "]"));
 
                 int256 expectedCoeff = json.readInt(key);
 

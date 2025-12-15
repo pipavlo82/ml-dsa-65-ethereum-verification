@@ -21,7 +21,11 @@ library MLDSA65_KeccakXOF {
     }
 
     /// @notice Стрім для ExpandA: seed := "MLDSA65-ExpandA" || rho || row || col.
-    function initExpandA(bytes32 rho, uint16 row, uint16 col) internal pure returns (Stream memory s) {
+    function initExpandA(bytes32 rho, uint16 row, uint16 col)
+        internal
+        pure
+        returns (Stream memory s)
+    {
         bytes memory seed = abi.encodePacked("MLDSA65-ExpandA", rho, row, col);
         s.prng = initPRNG(seed);
     }

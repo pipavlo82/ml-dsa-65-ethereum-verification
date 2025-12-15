@@ -2,7 +2,9 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
-import {MLDSA65_ExpandA_KeccakFIPS204} from "../contracts/verifier/MLDSA65_ExpandA_KeccakFIPS204.sol";
+import {
+    MLDSA65_ExpandA_KeccakFIPS204
+} from "../contracts/verifier/MLDSA65_ExpandA_KeccakFIPS204.sol";
 
 contract MLDSA_ExpandA_KAT_Structure_Test is Test {
     uint256 constant K = 6;
@@ -11,7 +13,8 @@ contract MLDSA_ExpandA_KAT_Structure_Test is Test {
 
     function test_expandA_kat_dummy_structure() public {
         // читаємо dummy JSON, щоб перевірити, що форми/ключі нормальні
-        string memory path = string(abi.encodePacked(vm.projectRoot(), "/test_vectors/expandA_dummy.json"));
+        string memory path =
+            string(abi.encodePacked(vm.projectRoot(), "/test_vectors/expandA_dummy.json"));
         string memory json = vm.readFile(path);
 
         // базові поля

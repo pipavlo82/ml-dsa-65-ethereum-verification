@@ -97,7 +97,10 @@ function F1600(uint64[25] memory state) pure returns (uint64[25] memory) {
                 }*/
 
                 let endloop := add(add(state, x), 800)
-                for { let offset := add(state, x) } gt(endloop, offset) { offset := add(offset, 160) } {
+                for { let offset := add(state, x) } gt(endloop, offset) { offset := add(
+                    offset,
+                    160
+                ) } {
                     mstore(offset, xor(mload(offset), t))
                 }
             }
@@ -140,7 +143,10 @@ function F1600(uint64[25] memory state) pure returns (uint64[25] memory) {
                     )
                 }
 
-                mstore(state, and(xor(mload(state), mload(add(_KECCAK_RC, shl(5, i)))), 0xffffffffffffffff)) //state[0] ^= _KECCAK_RC[i];
+                mstore(
+                    state,
+                    and(xor(mload(state), mload(add(_KECCAK_RC, shl(5, i)))), 0xffffffffffffffff)
+                ) //state[0] ^= _KECCAK_RC[i];
             } //end loop y
 
         } //end loop i
@@ -185,7 +191,10 @@ function shake_init() pure returns (ctx_shake memory ctx) {
     return ctx;
 }
 
-function shake_update(ctx_shake memory ctx, bytes memory input) pure returns (ctx_shake memory ctxout) {
+function shake_update(ctx_shake memory ctx, bytes memory input)
+    pure
+    returns (ctx_shake memory ctxout)
+{
     if (ctx.direction == _SPONGE_SQUEEZING) {
         (ctx.buff, ctx.state) = shake_permute(ctx.buff, ctx.state);
     }
@@ -194,7 +203,10 @@ function shake_update(ctx_shake memory ctx, bytes memory input) pure returns (ct
     return ctxout;
 }
 
-function shake_squeeze(ctx_shake memory ctx, uint256 n) pure returns (ctx_shake memory ctxout, bytes memory) {
+function shake_squeeze(ctx_shake memory ctx, uint256 n)
+    pure
+    returns (ctx_shake memory ctxout, bytes memory)
+{
     bytes memory output = new bytes(n);
     uint256 tosqueeze = n;
     uint256 offset = 0;

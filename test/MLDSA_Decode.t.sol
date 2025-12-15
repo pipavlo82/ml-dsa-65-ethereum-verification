@@ -5,12 +5,20 @@ import "forge-std/Test.sol";
 import "../contracts/verifier/MLDSA65_Verifier_v2.sol";
 
 contract MLDSA_Decode_Harness is MLDSA65_Verifier_v2 {
-    function exposedDecodePublicKey(bytes calldata raw) external pure returns (DecodedPublicKey memory) {
+    function exposedDecodePublicKey(bytes calldata raw)
+        external
+        pure
+        returns (DecodedPublicKey memory)
+    {
         PublicKey memory pk = PublicKey({raw: raw});
         return _decodePublicKey(pk);
     }
 
-    function exposedDecodeSignature(bytes calldata raw) external pure returns (DecodedSignature memory) {
+    function exposedDecodeSignature(bytes calldata raw)
+        external
+        pure
+        returns (DecodedSignature memory)
+    {
         Signature memory sig = Signature({raw: raw});
         return _decodeSignature(sig);
     }

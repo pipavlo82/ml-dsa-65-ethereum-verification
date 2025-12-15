@@ -1,5 +1,8 @@
 ComputeW_GasMicro_Test:test_compute_w_gas_no_challenge() (gas: 72825140)
 ComputeW_GasMicro_Test:test_compute_w_gas_with_challenge() (gas: 74390177)
+ExpandA_GasMicro_Test:test_expandA_matrix_6x5_polys_gas_rho0() (gas: 5702762)
+ExpandA_GasMicro_Test:test_expandA_poly_gas_rho0_row0_col0() (gas: 189153)
+ExpandA_GasMicro_Test:test_expandA_poly_gas_rho1_row0_col0() (gas: 189173)
 MLDSA_Challenge_Test:test_deriveChallenge_matches_poly_challenge() (gas: 190202)
 MLDSA_Challenge_Test:test_poly_challenge_basic_shape() (gas: 121512)
 MLDSA_DecodeCoeffs_Test:test_decode_public_key_first_four_t1_coeffs() (gas: 440664)

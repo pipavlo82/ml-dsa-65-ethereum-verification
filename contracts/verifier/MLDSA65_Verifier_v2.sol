@@ -28,6 +28,9 @@ library MLDSA65_Poly {
             int64 tmp = int64(a[i]) + int64(b[i]);
             tmp %= q;
             if (tmp < 0) tmp += q;
+
+            // forge-lint: disable-next-line(unsafe-typecast)
+            // safe: tmp is in [0, q-1], and q=8_380_417 < 2^31, so fits in int32.
             r[i] = int32(tmp);
         }
     }
@@ -43,6 +46,9 @@ library MLDSA65_Poly {
             int64 tmp = int64(a[i]) - int64(b[i]);
             tmp %= q;
             if (tmp < 0) tmp += q;
+
+            // forge-lint: disable-next-line(unsafe-typecast)
+            // safe: tmp is in [0, q-1], and q=8_380_417 < 2^31, so fits in int32.
             r[i] = int32(tmp);
         }
     }
@@ -57,6 +63,9 @@ library MLDSA65_Poly {
         for (uint256 i = 0; i < N; ++i) {
             int64 tmp = (int64(a[i]) * int64(b[i])) % q;
             if (tmp < 0) tmp += q;
+
+            // forge-lint: disable-next-line(unsafe-typecast)
+            // safe: tmp is in [0, q-1], and q=8_380_417 < 2^31, so fits in int32.
             r[i] = int32(tmp);
         }
     }
@@ -168,10 +177,15 @@ library MLDSA65_PolyVec {
         for (uint256 i = 0; i < N; ++i) {
             int256 v = int256(a[i]);
             if (v >= 0 && v < q) {
+                // forge-lint: disable-next-line(unsafe-typecast)
+                // safe: v in [0, q-1] and q fits in uint256.
                 r[i] = uint256(v);
             } else {
                 v %= q;
                 if (v < 0) v += q;
+
+                // forge-lint: disable-next-line(unsafe-typecast)
+                // safe: v normalized to [0, q-1].
                 r[i] = uint256(v);
             }
         }
@@ -180,6 +194,8 @@ library MLDSA65_PolyVec {
     function _fromNTTDomain(uint256[256] memory a) internal pure returns (int32[256] memory r) {
         unchecked {
             for (uint256 i = 0; i < N; ++i) {
+                // forge-lint: disable-next-line(unsafe-typecast)
+                // safe: a[i] % q is in [0, q-1] with q<2^31, so fits in int32.
                 r[i] = int32(uint32(a[i] % Q_U));
             }
         }
@@ -195,10 +211,15 @@ library MLDSA65_PolyVec {
             for (uint256 i = 0; i < N; ++i) {
                 int256 v = int256(a[i]);
                 if (v >= 0 && v < q) {
+                    // forge-lint: disable-next-line(unsafe-typecast)
+                    // safe: v in [0, q-1].
                     r[i] = uint256(v);
                 } else {
                     v %= q;
                     if (v < 0) v += q;
+
+                    // forge-lint: disable-next-line(unsafe-typecast)
+                    // safe: v normalized to [0, q-1].
                     r[i] = uint256(v);
                 }
             }
@@ -210,10 +231,16 @@ library MLDSA65_PolyVec {
         unchecked {
             for (uint256 i = 0; i < N; ++i) {
                 int256 v = int256(a[i]);
-                if (v >= 0 && v < q) out[i] = uint256(v);
-                else {
+                if (v >= 0 && v < q) {
+                    // forge-lint: disable-next-line(unsafe-typecast)
+                    // safe: v in [0, q-1].
+                    out[i] = uint256(v);
+                } else {
                     v %= q;
                     if (v < 0) v += q;
+
+                    // forge-lint: disable-next-line(unsafe-typecast)
+                    // safe: v normalized to [0, q-1].
                     out[i] = uint256(v);
                 }
             }
@@ -560,6 +587,9 @@ contract MLDSA65_Verifier_v2 {
             (uint32(uint8(src[offset + 3])) << 24);
 
         uint32 reduced = v % uint32(8380417);
+
+        // forge-lint: disable-next-line(unsafe-typecast)
+        // safe: reduced is in [0, q-1] with q<2^31, so fits in int32.
         return int32(uint32(reduced));
     }
 
@@ -610,47 +640,56 @@ contract MLDSA65_Verifier_v2 {
     {
         bytes32 rho = dpk.rho;
 
-        // 1) z_ntt_u[j]
-        uint256[256][5] memory z_ntt_u;
+        // 1) zNttU[j]
+        uint256[256][5] memory zNttU;
         for (uint256 j = 0; j < MLDSA65_PolyVec.L; ++j) {
-            uint256[256] memory zu = MLDSA65_PolyVec._toUQ(dsig.z.polys[j]);
-            z_ntt_u[j] = MLDSA65_PolyVec._nttU(zu);
+            uint256[256] memory zU = MLDSA65_PolyVec._toUQ(dsig.z.polys[j]);
+            zNttU[j] = MLDSA65_PolyVec._nttU(zU);
         }
 
-        // 2) c_ntt_u
+        // 2) cNttU
         bool hasChallenge = (dsig.c != bytes32(0));
-        uint256[256] memory c_ntt_u;
+        uint256[256] memory cNttU;
         if (hasChallenge) {
-            int32[256] memory c_poly = MLDSA65_Challenge.poly_challenge(dsig.c);
-            uint256[256] memory cu = MLDSA65_PolyVec._toUQ(c_poly);
-            c_ntt_u = MLDSA65_PolyVec._nttU(cu);
+            int32[256] memory cPoly = MLDSA65_Challenge.poly_challenge(dsig.c);
+            uint256[256] memory cU = MLDSA65_PolyVec._toUQ(cPoly);
+            cNttU = MLDSA65_PolyVec._nttU(cU);
         }
 
-        // 2.5) t1_ntt_u[k]
-        uint256[256][6] memory t1_ntt_u;
+        // 2.5) t1NttU[k]
+        uint256[256][6] memory t1NttU;
         for (uint256 k = 0; k < MLDSA65_PolyVec.K; ++k) {
-            uint256[256] memory t1u = MLDSA65_PolyVec._toUQ(dpk.t1.polys[k]);
-            t1_ntt_u[k] = MLDSA65_PolyVec._nttU(t1u);
+            uint256[256] memory t1U = MLDSA65_PolyVec._toUQ(dpk.t1.polys[k]);
+            t1NttU[k] = MLDSA65_PolyVec._nttU(t1U);
         }
 
         // 3) for each row k
         for (uint256 k = 0; k < MLDSA65_PolyVec.K; ++k) {
-            uint256[256] memory acc_ntt_u;
+            uint256[256] memory accNttU;
 
             // workspace buffers (allocated once per k)
-            uint256[256] memory a_ntt_u;
-            uint256[256] memory tmp_u_ws;
+            uint256[256] memory aNttU;
+            uint256[256] memory tmpUWs;
+
+            // pre-cast row index once (avoid repeating unsafe-typecast at callsite)
+            // forge-lint: disable-next-line(unsafe-typecast)
+            // safe: k < K (=6) so fits in uint8.
+            uint8 k8 = uint8(k);
 
             if (!hasChallenge) {
                 // Pure A·z
                 for (uint256 j = 0; j < MLDSA65_PolyVec.L; ++j) {
-                    _expandA_poly_ntt_u_into_ws(rho, uint8(k), uint8(j), tmp_u_ws, a_ntt_u);
+                    // forge-lint: disable-next-line(unsafe-typecast)
+                    // safe: j < L (=5) so fits in uint8.
+                    uint8 j8 = uint8(j);
+
+                    _expandA_poly_ntt_u_into_ws(rho, k8, j8, tmpUWs, aNttU);
 
                     assembly ("memory-safe") {
                         let q := 8380417
-                        let accPtr := acc_ntt_u
-                        let aPtr := a_ntt_u
-                        let zPtr := mload(add(z_ntt_u, shl(5, j))) // row pointer
+                        let accPtr := accNttU
+                        let aPtr := aNttU
+                        let zPtr := mload(add(zNttU, shl(5, j))) // row pointer
 
                         // unroll ×2, off += 0x40
                         for { let off := 0 } lt(off, 0x2000) { off := add(off, 0x40) } {
@@ -675,13 +714,17 @@ contract MLDSA65_Verifier_v2 {
             } else {
                 // A·z for j=0..L-2
                 for (uint256 j = 0; j < (MLDSA65_PolyVec.L - 1); ++j) {
-                    _expandA_poly_ntt_u_into_ws(rho, uint8(k), uint8(j), tmp_u_ws, a_ntt_u);
+                    // forge-lint: disable-next-line(unsafe-typecast)
+                    // safe: j < (L-1) <= 4 so fits in uint8.
+                    uint8 j8 = uint8(j);
+
+                    _expandA_poly_ntt_u_into_ws(rho, k8, j8, tmpUWs, aNttU);
 
                     assembly ("memory-safe") {
                         let q := 8380417
-                        let accPtr := acc_ntt_u
-                        let aPtr := a_ntt_u
-                        let zPtr := mload(add(z_ntt_u, shl(5, j))) // row pointer
+                        let accPtr := accNttU
+                        let aPtr := aNttU
+                        let zPtr := mload(add(zNttU, shl(5, j))) // row pointer
 
                         for { let off := 0 } lt(off, 0x2000) { off := add(off, 0x40) } {
                             // lane0
@@ -706,16 +749,21 @@ contract MLDSA65_Verifier_v2 {
                 // last column j=L-1: fuse -c·t1
                 {
                     uint256 jLast = MLDSA65_PolyVec.L - 1;
-                    _expandA_poly_ntt_u_into_ws(rho, uint8(k), uint8(jLast), tmp_u_ws, a_ntt_u);
+
+                    // forge-lint: disable-next-line(unsafe-typecast)
+                    // safe: jLast == 4 so fits in uint8.
+                    uint8 jLast8 = uint8(jLast);
+
+                    _expandA_poly_ntt_u_into_ws(rho, k8, jLast8, tmpUWs, aNttU);
 
                     assembly ("memory-safe") {
                         let q := 8380417
 
-                        let accPtr := acc_ntt_u
-                        let aPtr := a_ntt_u
-                        let zPtr := mload(add(z_ntt_u, shl(5, jLast)))
-                        let cPtr := c_ntt_u
-                        let t1Ptr := mload(add(t1_ntt_u, shl(5, k)))
+                        let accPtr := accNttU
+                        let aPtr := aNttU
+                        let zPtr := mload(add(zNttU, shl(5, jLast)))
+                        let cPtr := cNttU
+                        let t1Ptr := mload(add(t1NttU, shl(5, k)))
 
                         for { let off := 0 } lt(off, 0x2000) { off := add(off, 0x40) } {
                             // lane0
@@ -749,10 +797,12 @@ contract MLDSA65_Verifier_v2 {
             }
 
             // Back to time domain
-            uint256[256] memory w_u = MLDSA65_PolyVec._inttU(acc_ntt_u);
+            uint256[256] memory wU = MLDSA65_PolyVec._inttU(accNttU);
 
             for (uint256 i = 0; i < MLDSA65_PolyVec.N; ++i) {
-                w.polys[k][i] = int32(uint32(w_u[i]));
+                // forge-lint: disable-next-line(unsafe-typecast)
+                // safe: wU[i] in [0, q-1] and q<2^31, so fits in int32.
+                w.polys[k][i] = int32(uint32(wU[i]));
             }
         }
 
@@ -767,46 +817,46 @@ contract MLDSA65_Verifier_v2 {
         pure
         returns (MLDSA65_PolyVec.PolyVecK memory w)
     {
-        // 1) z_ntt_u[j]
-        uint256[256][5] memory z_ntt_u;
+        // 1) zNttU[j]
+        uint256[256][5] memory zNttU;
         for (uint256 j = 0; j < MLDSA65_PolyVec.L; ++j) {
-            uint256[256] memory zu = MLDSA65_PolyVec._toUQ(dsig.z.polys[j]);
-            z_ntt_u[j] = MLDSA65_PolyVec._nttU(zu);
+            uint256[256] memory zU = MLDSA65_PolyVec._toUQ(dsig.z.polys[j]);
+            zNttU[j] = MLDSA65_PolyVec._nttU(zU);
         }
 
-        // 2) c_ntt_u
+        // 2) cNttU
         bool hasChallenge = (dsig.c != bytes32(0));
-        uint256[256] memory c_ntt_u;
+        uint256[256] memory cNttU;
         if (hasChallenge) {
-            int32[256] memory c_poly = MLDSA65_Challenge.poly_challenge(dsig.c);
-            uint256[256] memory cu = MLDSA65_PolyVec._toUQ(c_poly);
-            c_ntt_u = MLDSA65_PolyVec._nttU(cu);
+            int32[256] memory cPoly = MLDSA65_Challenge.poly_challenge(dsig.c);
+            uint256[256] memory cU = MLDSA65_PolyVec._toUQ(cPoly);
+            cNttU = MLDSA65_PolyVec._nttU(cU);
         }
 
-        // 3) t1_ntt_u[k]
-        uint256[256][6] memory t1_ntt_u;
+        // 3) t1NttU[k]
+        uint256[256][6] memory t1NttU;
         for (uint256 k = 0; k < MLDSA65_PolyVec.K; ++k) {
-            uint256[256] memory t1u = MLDSA65_PolyVec._toUQ(dpk.t1.polys[k]);
-            t1_ntt_u[k] = MLDSA65_PolyVec._nttU(t1u);
+            uint256[256] memory t1U = MLDSA65_PolyVec._toUQ(dpk.t1.polys[k]);
+            t1NttU[k] = MLDSA65_PolyVec._nttU(t1U);
         }
 
-        uint256[256] memory a_ntt_u;
-        uint256[256] memory acc_ntt_u;
+        uint256[256] memory aNttU;
+        uint256[256] memory accNttU;
 
         for (uint256 k = 0; k < MLDSA65_PolyVec.K; ++k) {
             // zero acc
-            for (uint256 i = 0; i < 256; ++i) acc_ntt_u[i] = 0;
+            for (uint256 i = 0; i < 256; ++i) accNttU[i] = 0;
 
             // acc += A[k][j] * z[j]
             for (uint256 j = 0; j < MLDSA65_PolyVec.L; ++j) {
                 uint256 polyIndex = k * MLDSA65_PolyVec.L + j;
-                MLDSA65_PackedA_NTT.loadPolyU32BE(packedANtt, polyIndex, a_ntt_u);
+                MLDSA65_PackedA_NTT.loadPolyU32BE(packedANtt, polyIndex, aNttU);
 
                 assembly ("memory-safe") {
                     let q := 8380417
-                    let accPtr := acc_ntt_u
-                    let aPtr := a_ntt_u
-                    let zPtr := mload(add(z_ntt_u, shl(5, j))) // row pointer
+                    let accPtr := accNttU
+                    let aPtr := aNttU
+                    let zPtr := mload(add(zNttU, shl(5, j))) // row pointer
 
                     // unroll ×4, off += 0x80
                     for { let off := 0 } lt(off, 0x2000) { off := add(off, 0x80) } {
@@ -849,9 +899,9 @@ contract MLDSA65_Verifier_v2 {
             if (hasChallenge) {
                 assembly ("memory-safe") {
                     let q := 8380417
-                    let accPtr := acc_ntt_u
-                    let cPtr := c_ntt_u
-                    let t1Ptr := mload(add(t1_ntt_u, shl(5, k))) // row pointer
+                    let accPtr := accNttU
+                    let cPtr := cNttU
+                    let t1Ptr := mload(add(t1NttU, shl(5, k))) // row pointer
 
                     for { let off := 0 } lt(off, 0x2000) { off := add(off, 0x80) } {
                         // lane0
@@ -890,9 +940,11 @@ contract MLDSA65_Verifier_v2 {
             }
 
             // Back to time domain
-            uint256[256] memory w_u = MLDSA65_PolyVec._inttU(acc_ntt_u);
+            uint256[256] memory wU = MLDSA65_PolyVec._inttU(accNttU);
             for (uint256 i = 0; i < MLDSA65_PolyVec.N; ++i) {
-                w.polys[k][i] = int32(uint32(w_u[i]));
+                // forge-lint: disable-next-line(unsafe-typecast)
+                // safe: wU[i] in [0, q-1] and q<2^31, so fits in int32.
+                w.polys[k][i] = int32(uint32(wU[i]));
             }
         }
 

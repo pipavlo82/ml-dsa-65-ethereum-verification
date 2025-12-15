@@ -17,11 +17,10 @@ library MLDSA65_Poly {
     int32 internal constant Q = 8380417; // fits in int32
 
     /// @notice r = (a + b) mod q, coefficient-wise
-    function add(int32[256] memory a, int32[256] memory b)
-        internal
-        pure
-        returns (int32[256] memory r)
-    {
+    function add(
+        int32[256] memory a,
+        int32[256] memory b
+    ) internal pure returns (int32[256] memory r) {
         int64 q = int64(Q);
         for (uint256 i = 0; i < N; ++i) {
             int64 tmp = int64(a[i]) + int64(b[i]);
@@ -32,11 +31,10 @@ library MLDSA65_Poly {
     }
 
     /// @notice r = (a - b) mod q, coefficient-wise
-    function sub(int32[256] memory a, int32[256] memory b)
-        internal
-        pure
-        returns (int32[256] memory r)
-    {
+    function sub(
+        int32[256] memory a,
+        int32[256] memory b
+    ) internal pure returns (int32[256] memory r) {
         int64 q = int64(Q);
         for (uint256 i = 0; i < N; ++i) {
             int64 tmp = int64(a[i]) - int64(b[i]);
@@ -47,11 +45,10 @@ library MLDSA65_Poly {
     }
 
     /// @notice r = a ∘ b (pointwise) mod q
-    function pointwiseMul(int32[256] memory a, int32[256] memory b)
-        internal
-        pure
-        returns (int32[256] memory r)
-    {
+    function pointwiseMul(
+        int32[256] memory a,
+        int32[256] memory b
+    ) internal pure returns (int32[256] memory r) {
         int64 q = int64(Q);
         for (uint256 i = 0; i < N; ++i) {
             int64 tmp = (int64(a[i]) * int64(b[i])) % q;
@@ -73,9 +70,7 @@ library MLDSA65_PolyU {
     uint256 internal constant Q = 8380417;
 
     function addQ(uint256[256] memory a, uint256[256] memory b)
-        internal
-        pure
-        returns (uint256[256] memory r)
+        internal pure returns (uint256[256] memory r)
     {
         unchecked {
             for (uint256 i = 0; i < N; ++i) {
@@ -85,9 +80,7 @@ library MLDSA65_PolyU {
     }
 
     function subQ(uint256[256] memory a, uint256[256] memory b)
-        internal
-        pure
-        returns (uint256[256] memory r)
+        internal pure returns (uint256[256] memory r)
     {
         unchecked {
             for (uint256 i = 0; i < N; ++i) {
@@ -97,9 +90,7 @@ library MLDSA65_PolyU {
     }
 
     function pointwiseMulQ(uint256[256] memory a, uint256[256] memory b)
-        internal
-        pure
-        returns (uint256[256] memory r)
+        internal pure returns (uint256[256] memory r)
     {
         unchecked {
             for (uint256 i = 0; i < N; ++i) {
@@ -131,25 +122,37 @@ library MLDSA65_PolyVec {
         int32[256][K] polys;
     }
 
-    function addL(PolyVecL memory a, PolyVecL memory b) internal pure returns (PolyVecL memory r) {
+    function addL(
+        PolyVecL memory a,
+        PolyVecL memory b
+    ) internal pure returns (PolyVecL memory r) {
         for (uint256 i = 0; i < L; ++i) {
             r.polys[i] = MLDSA65_Poly.add(a.polys[i], b.polys[i]);
         }
     }
 
-    function subL(PolyVecL memory a, PolyVecL memory b) internal pure returns (PolyVecL memory r) {
+    function subL(
+        PolyVecL memory a,
+        PolyVecL memory b
+    ) internal pure returns (PolyVecL memory r) {
         for (uint256 i = 0; i < L; ++i) {
             r.polys[i] = MLDSA65_Poly.sub(a.polys[i], b.polys[i]);
         }
     }
 
-    function addK(PolyVecK memory a, PolyVecK memory b) internal pure returns (PolyVecK memory r) {
+    function addK(
+        PolyVecK memory a,
+        PolyVecK memory b
+    ) internal pure returns (PolyVecK memory r) {
         for (uint256 i = 0; i < K; ++i) {
             r.polys[i] = MLDSA65_Poly.add(a.polys[i], b.polys[i]);
         }
     }
 
-    function subK(PolyVecK memory a, PolyVecK memory b) internal pure returns (PolyVecK memory r) {
+    function subK(
+        PolyVecK memory a,
+        PolyVecK memory b
+    ) internal pure returns (PolyVecK memory r) {
         for (uint256 i = 0; i < K; ++i) {
             r.polys[i] = MLDSA65_Poly.sub(a.polys[i], b.polys[i]);
         }
@@ -160,7 +163,9 @@ library MLDSA65_PolyVec {
     // Prefer uint256 path: _toUQ + _nttU/_inttU for gas and correctness.
     // ---------------------------------------------------------------------
 
-    function _toNTTDomain(int32[256] memory a) internal pure returns (uint256[256] memory r) {
+    function _toNTTDomain(
+        int32[256] memory a
+    ) internal pure returns (uint256[256] memory r) {
         int256 q = int256(int32(Q));
         for (uint256 i = 0; i < N; ++i) {
             int256 v = int256(a[i]);
@@ -174,7 +179,9 @@ library MLDSA65_PolyVec {
         }
     }
 
-    function _fromNTTDomain(uint256[256] memory a) internal pure returns (int32[256] memory r) {
+    function _fromNTTDomain(
+        uint256[256] memory a
+    ) internal pure returns (int32[256] memory r) {
         uint256 q = uint256(uint32(uint32(int32(Q))));
         for (uint256 i = 0; i < N; ++i) {
             uint256 v = a[i] % q;
@@ -207,9 +214,8 @@ library MLDSA65_PolyVec {
         unchecked {
             for (uint256 i = 0; i < N; ++i) {
                 int256 v = int256(a[i]);
-                if (v >= 0 && v < q) {
-                    out[i] = uint256(v);
-                } else {
+                if (v >= 0 && v < q) out[i] = uint256(v);
+                else {
                     v %= q;
                     if (v < 0) v += q;
                     out[i] = uint256(v);
@@ -221,18 +227,14 @@ library MLDSA65_PolyVec {
     function _nttU_into(uint256[256] memory a, uint256[256] memory out) internal pure {
         uint256[256] memory r = NTT_MLDSA_Real.ntt(a);
         unchecked {
-            for (uint256 i = 0; i < N; ++i) {
-                out[i] = r[i];
-            }
+            for (uint256 i = 0; i < N; ++i) out[i] = r[i];
         }
     }
 
     function _inttU_into(uint256[256] memory a, uint256[256] memory out) internal pure {
         uint256[256] memory r = NTT_MLDSA_Real.intt(a);
         unchecked {
-            for (uint256 i = 0; i < N; ++i) {
-                out[i] = r[i];
-            }
+            for (uint256 i = 0; i < N; ++i) out[i] = r[i];
         }
     }
 
@@ -248,40 +250,36 @@ library MLDSA65_PolyVec {
     // legacy bridge helpers (tests)
     // -----------------------------
 
-    function _nttPoly(int32[256] memory a) internal pure returns (int32[256] memory r) {
+    function _nttPoly(
+        int32[256] memory a
+    ) internal pure returns (int32[256] memory r) {
         uint256[256] memory tmp = _toNTTDomain(a);
         tmp = NTT_MLDSA_Real.ntt(tmp);
         r = _fromNTTDomain(tmp);
     }
 
-    function _inttPoly(int32[256] memory a) internal pure returns (int32[256] memory r) {
+    function _inttPoly(
+        int32[256] memory a
+    ) internal pure returns (int32[256] memory r) {
         uint256[256] memory tmp = _toNTTDomain(a);
         tmp = NTT_MLDSA_Real.intt(tmp);
         r = _fromNTTDomain(tmp);
     }
 
     function nttL(PolyVecL memory v) internal pure returns (PolyVecL memory r) {
-        for (uint256 j = 0; j < L; ++j) {
-            r.polys[j] = _nttPoly(v.polys[j]);
-        }
+        for (uint256 j = 0; j < L; ++j) r.polys[j] = _nttPoly(v.polys[j]);
     }
 
     function inttL(PolyVecL memory v) internal pure returns (PolyVecL memory r) {
-        for (uint256 j = 0; j < L; ++j) {
-            r.polys[j] = _inttPoly(v.polys[j]);
-        }
+        for (uint256 j = 0; j < L; ++j) r.polys[j] = _inttPoly(v.polys[j]);
     }
 
     function nttK(PolyVecK memory v) internal pure returns (PolyVecK memory r) {
-        for (uint256 k = 0; k < K; ++k) {
-            r.polys[k] = _nttPoly(v.polys[k]);
-        }
+        for (uint256 k = 0; k < K; ++k) r.polys[k] = _nttPoly(v.polys[k]);
     }
 
     function inttK(PolyVecK memory v) internal pure returns (PolyVecK memory r) {
-        for (uint256 k = 0; k < K; ++k) {
-            r.polys[k] = _inttPoly(v.polys[k]);
-        }
+        for (uint256 k = 0; k < K; ++k) r.polys[k] = _inttPoly(v.polys[k]);
     }
 }
 
@@ -327,22 +325,14 @@ library MLDSA65_Hint {
     function applyHintL(
         MLDSA65_PolyVec.PolyVecL memory w,
         HintVecL memory /*h*/
-    )
-        internal
-        pure
-        returns (MLDSA65_PolyVec.PolyVecL memory out)
-    {
+    ) internal pure returns (MLDSA65_PolyVec.PolyVecL memory out) {
         return w;
     }
 
     function applyHintK(
         MLDSA65_PolyVec.PolyVecK memory w,
         HintVecK memory /*h*/
-    )
-        internal
-        pure
-        returns (MLDSA65_PolyVec.PolyVecK memory out)
-    {
+    ) internal pure returns (MLDSA65_PolyVec.PolyVecK memory out) {
         return w;
     }
 }
@@ -386,11 +376,11 @@ contract MLDSA65_Verifier_v2 {
         MLDSA65_Hint.HintVecK h;
     }
 
-    function verify(PublicKey memory pk, Signature memory sig, bytes32 message_digest)
-        external
-        pure
-        returns (bool)
-    {
+    function verify(
+        PublicKey memory pk,
+        Signature memory sig,
+        bytes32 message_digest
+    ) external pure returns (bool) {
         if (pk.raw.length < 32 || sig.raw.length < 32) return false;
 
         DecodedPublicKey memory dpk = _decodePublicKey(pk);
@@ -411,45 +401,25 @@ contract MLDSA65_Verifier_v2 {
 
     // ---- decode overloads
 
-    function _decodePublicKey(PublicKey memory pk)
-        internal
-        pure
-        returns (DecodedPublicKey memory dpk)
-    {
+    function _decodePublicKey(PublicKey memory pk) internal pure returns (DecodedPublicKey memory dpk) {
         return _decodePublicKeyRaw(pk.raw);
     }
 
-    function _decodePublicKey(bytes memory pkRaw)
-        internal
-        pure
-        returns (DecodedPublicKey memory dpk)
-    {
+    function _decodePublicKey(bytes memory pkRaw) internal pure returns (DecodedPublicKey memory dpk) {
         return _decodePublicKeyRaw(pkRaw);
     }
 
-    function _decodeSignature(Signature memory sig)
-        internal
-        pure
-        returns (DecodedSignature memory dsig)
-    {
+    function _decodeSignature(Signature memory sig) internal pure returns (DecodedSignature memory dsig) {
         return _decodeSignatureRaw(sig.raw);
     }
 
-    function _decodeSignature(bytes memory sigRaw)
-        internal
-        pure
-        returns (DecodedSignature memory dsig)
-    {
+    function _decodeSignature(bytes memory sigRaw) internal pure returns (DecodedSignature memory dsig) {
         return _decodeSignatureRaw(sigRaw);
     }
 
     // ---- decode (raw)
 
-    function _decodePublicKeyRaw(bytes memory pkRaw)
-        internal
-        pure
-        returns (DecodedPublicKey memory dpk)
-    {
+    function _decodePublicKeyRaw(bytes memory pkRaw) internal pure returns (DecodedPublicKey memory dpk) {
         uint256 len = pkRaw.length;
 
         if (len >= PK_MIN_LEN) {
@@ -526,11 +496,7 @@ contract MLDSA65_Verifier_v2 {
         }
     }
 
-    function _decodeSignatureRaw(bytes memory sigRaw)
-        internal
-        pure
-        returns (DecodedSignature memory dsig)
-    {
+    function _decodeSignatureRaw(bytes memory sigRaw) internal pure returns (DecodedSignature memory dsig) {
         uint256 len = sigRaw.length;
 
         // c = last 32 bytes if present
@@ -554,9 +520,7 @@ contract MLDSA65_Verifier_v2 {
                     uint256 off = idx * 4;
                     int32 coeff = _decodeCoeffLE(sigRaw, off);
                     dsig.z.polys[j][i] = coeff;
-                    unchecked {
-                        ++idx;
-                    }
+                    unchecked { ++idx; }
                 }
             }
         }
@@ -566,8 +530,11 @@ contract MLDSA65_Verifier_v2 {
     function _decodeCoeffLE(bytes memory src, uint256 offset) internal pure returns (int32) {
         require(offset + 4 <= src.length, "coeff decode out of bounds");
 
-        uint32 v = uint32(uint8(src[offset])) | (uint32(uint8(src[offset + 1])) << 8)
-            | (uint32(uint8(src[offset + 2])) << 16) | (uint32(uint8(src[offset + 3])) << 24);
+        uint32 v =
+            uint32(uint8(src[offset])) |
+            (uint32(uint8(src[offset + 1])) << 8) |
+            (uint32(uint8(src[offset + 2])) << 16) |
+            (uint32(uint8(src[offset + 3])) << 24);
 
         uint32 q = uint32(uint32(uint256(int256(Q))));
         uint32 reduced = v % q;
@@ -576,11 +543,7 @@ contract MLDSA65_Verifier_v2 {
 
     // ---- ExpandA (Keccak/FIPS-204)
 
-    function _expandA_poly(bytes32 rho, uint8 row, uint8 col)
-        internal
-        pure
-        returns (int32[256] memory a)
-    {
+    function _expandA_poly(bytes32 rho, uint8 row, uint8 col) internal pure returns (int32[256] memory a) {
         if (row >= MLDSA65_PolyVec.K || col >= MLDSA65_PolyVec.L) revert("ExpandA: idx");
         a = MLDSA65_ExpandA_KeccakFIPS204.expandA_poly(rho, row, col);
     }
@@ -612,19 +575,16 @@ contract MLDSA65_Verifier_v2 {
     }
 
     function _polyEq(int32[256] memory a, int32[256] memory b) internal pure returns (bool) {
-        for (uint256 i = 0; i < 256; ++i) {
-            if (a[i] != b[i]) return false;
-        }
+        for (uint256 i = 0; i < 256; ++i) if (a[i] != b[i]) return false;
         return true;
     }
 
-    // ---- w = A*z - c*t1
+    // ---- w = A*z - c*t1 (Phase 9-A+B optimized)
 
-    function _compute_w(DecodedPublicKey memory dpk, DecodedSignature memory dsig)
-        internal
-        pure
-        returns (MLDSA65_PolyVec.PolyVecK memory w)
-    {
+    function _compute_w(
+        DecodedPublicKey memory dpk,
+        DecodedSignature memory dsig
+    ) internal pure returns (MLDSA65_PolyVec.PolyVecK memory w) {
         bytes32 rho = dpk.rho;
 
         // 1) z_ntt_u[j]
@@ -666,25 +626,41 @@ contract MLDSA65_Verifier_v2 {
                     assembly {
                         let q := 8380417
                         let accPtr := acc_ntt_u
-                        let aPtr := a_ntt_u
-                        let zPtr := mload(add(z_ntt_u, mul(j, 0x20)))
+                        let aPtr   := a_ntt_u
+                        let zPtr   := mload(add(z_ntt_u, shl(5, j)))
 
-                        for { let off := 0 } lt(off, 0x2000) { off := add(off, 0x40) } {
-                            // lane0
+                        // Phase 9-A: unroll ×4 (64 iterations, 4 coeffs each)
+                        for { let off := 0 } lt(off, 0x2000) { off := add(off, 0x80) } {
+                            // lane0 @ off
                             {
                                 let accv := mload(add(accPtr, off))
                                 let prod := mulmod(mload(add(aPtr, off)), mload(add(zPtr, off)), q)
                                 accv := addmod(accv, prod, q)
                                 mstore(add(accPtr, off), accv)
                             }
-                            // lane1
+                            // lane1 @ off + 0x20
                             {
                                 let off1 := add(off, 0x20)
                                 let accv := mload(add(accPtr, off1))
-                                let prod :=
-                                    mulmod(mload(add(aPtr, off1)), mload(add(zPtr, off1)), q)
+                                let prod := mulmod(mload(add(aPtr, off1)), mload(add(zPtr, off1)), q)
                                 accv := addmod(accv, prod, q)
                                 mstore(add(accPtr, off1), accv)
+                            }
+                            // lane2 @ off + 0x40
+                            {
+                                let off2 := add(off, 0x40)
+                                let accv := mload(add(accPtr, off2))
+                                let prod := mulmod(mload(add(aPtr, off2)), mload(add(zPtr, off2)), q)
+                                accv := addmod(accv, prod, q)
+                                mstore(add(accPtr, off2), accv)
+                            }
+                            // lane3 @ off + 0x60
+                            {
+                                let off3 := add(off, 0x60)
+                                let accv := mload(add(accPtr, off3))
+                                let prod := mulmod(mload(add(aPtr, off3)), mload(add(zPtr, off3)), q)
+                                accv := addmod(accv, prod, q)
+                                mstore(add(accPtr, off3), accv)
                             }
                         }
                     }
@@ -697,25 +673,41 @@ contract MLDSA65_Verifier_v2 {
                     assembly {
                         let q := 8380417
                         let accPtr := acc_ntt_u
-                        let aPtr := a_ntt_u
-                        let zPtr := mload(add(z_ntt_u, mul(j, 0x20)))
+                        let aPtr   := a_ntt_u
+                        let zPtr   := mload(add(z_ntt_u, shl(5, j)))
 
-                        for { let off := 0 } lt(off, 0x2000) { off := add(off, 0x40) } {
-                            // lane0
+                        // Phase 9-A: unroll ×4 (64 iterations, 4 coeffs each)
+                        for { let off := 0 } lt(off, 0x2000) { off := add(off, 0x80) } {
+                            // lane0 @ off
                             {
                                 let accv := mload(add(accPtr, off))
                                 let prod := mulmod(mload(add(aPtr, off)), mload(add(zPtr, off)), q)
                                 accv := addmod(accv, prod, q)
                                 mstore(add(accPtr, off), accv)
                             }
-                            // lane1
+                            // lane1 @ off + 0x20
                             {
                                 let off1 := add(off, 0x20)
                                 let accv := mload(add(accPtr, off1))
-                                let prod :=
-                                    mulmod(mload(add(aPtr, off1)), mload(add(zPtr, off1)), q)
+                                let prod := mulmod(mload(add(aPtr, off1)), mload(add(zPtr, off1)), q)
                                 accv := addmod(accv, prod, q)
                                 mstore(add(accPtr, off1), accv)
+                            }
+                            // lane2 @ off + 0x40
+                            {
+                                let off2 := add(off, 0x40)
+                                let accv := mload(add(accPtr, off2))
+                                let prod := mulmod(mload(add(aPtr, off2)), mload(add(zPtr, off2)), q)
+                                accv := addmod(accv, prod, q)
+                                mstore(add(accPtr, off2), accv)
+                            }
+                            // lane3 @ off + 0x60
+                            {
+                                let off3 := add(off, 0x60)
+                                let accv := mload(add(accPtr, off3))
+                                let prod := mulmod(mload(add(aPtr, off3)), mload(add(zPtr, off3)), q)
+                                accv := addmod(accv, prod, q)
+                                mstore(add(accPtr, off3), accv)
                             }
                         }
                     }
@@ -730,13 +722,14 @@ contract MLDSA65_Verifier_v2 {
                         let q := 8380417
 
                         let accPtr := acc_ntt_u
-                        let aPtr := a_ntt_u
-                        let zPtr := mload(add(z_ntt_u, mul(jLast, 0x20)))
-                        let cPtr := c_ntt_u
-                        let t1Ptr := mload(add(t1_ntt_u, mul(k, 0x20)))
+                        let aPtr   := a_ntt_u
+                        let zPtr   := mload(add(z_ntt_u, shl(5, jLast)))
+                        let cPtr   := c_ntt_u
+                        let t1Ptr  := mload(add(t1_ntt_u, shl(5, k)))
 
-                        for { let off := 0 } lt(off, 0x2000) { off := add(off, 0x40) } {
-                            // lane0
+                        // Phase 9-A: unroll ×4 with fused -c·t1
+                        for { let off := 0 } lt(off, 0x2000) { off := add(off, 0x80) } {
+                            // lane0 @ off
                             {
                                 let accv := mload(add(accPtr, off))
 
@@ -748,20 +741,44 @@ contract MLDSA65_Verifier_v2 {
 
                                 mstore(add(accPtr, off), accv)
                             }
-                            // lane1
+                            // lane1 @ off + 0x20
                             {
                                 let off1 := add(off, 0x20)
                                 let accv := mload(add(accPtr, off1))
 
-                                let prod :=
-                                    mulmod(mload(add(aPtr, off1)), mload(add(zPtr, off1)), q)
+                                let prod := mulmod(mload(add(aPtr, off1)), mload(add(zPtr, off1)), q)
                                 accv := addmod(accv, prod, q)
 
-                                let term :=
-                                    mulmod(mload(add(cPtr, off1)), mload(add(t1Ptr, off1)), q)
+                                let term := mulmod(mload(add(cPtr, off1)), mload(add(t1Ptr, off1)), q)
                                 accv := addmod(accv, sub(q, term), q)
 
                                 mstore(add(accPtr, off1), accv)
+                            }
+                            // lane2 @ off + 0x40
+                            {
+                                let off2 := add(off, 0x40)
+                                let accv := mload(add(accPtr, off2))
+
+                                let prod := mulmod(mload(add(aPtr, off2)), mload(add(zPtr, off2)), q)
+                                accv := addmod(accv, prod, q)
+
+                                let term := mulmod(mload(add(cPtr, off2)), mload(add(t1Ptr, off2)), q)
+                                accv := addmod(accv, sub(q, term), q)
+
+                                mstore(add(accPtr, off2), accv)
+                            }
+                            // lane3 @ off + 0x60
+                            {
+                                let off3 := add(off, 0x60)
+                                let accv := mload(add(accPtr, off3))
+
+                                let prod := mulmod(mload(add(aPtr, off3)), mload(add(zPtr, off3)), q)
+                                accv := addmod(accv, prod, q)
+
+                                let term := mulmod(mload(add(cPtr, off3)), mload(add(t1Ptr, off3)), q)
+                                accv := addmod(accv, sub(q, term), q)
+
+                                mstore(add(accPtr, off3), accv)
                             }
                         }
                     }

@@ -36,3 +36,4 @@ via_ir = true
 fs_permissions = [
   { access = "read", path = "./" }
 ]
+

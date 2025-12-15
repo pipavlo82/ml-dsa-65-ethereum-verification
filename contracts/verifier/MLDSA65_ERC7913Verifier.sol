@@ -15,7 +15,7 @@ contract MLDSA65_ERC7913Verifier is IERC7913SignatureVerifier {
 
     /// @inheritdoc IERC7913SignatureVerifier
     function verify(bytes calldata key, bytes32 hash, bytes calldata signature)
-        external
+        public
         view
         override
         returns (bytes4)

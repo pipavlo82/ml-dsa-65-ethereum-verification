@@ -2,7 +2,9 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
-import {MLDSA65_ExpandA_KeccakFIPS204} from "../contracts/verifier/MLDSA65_ExpandA_KeccakFIPS204.sol";
+import {
+    MLDSA65_ExpandA_KeccakFIPS204
+} from "../contracts/verifier/MLDSA65_ExpandA_KeccakFIPS204.sol";
 
 contract MLDSA_ExpandA_Keccak_FIPS204_KAT_Test is Test {
     uint256 constant K = 6;
@@ -12,7 +14,9 @@ contract MLDSA_ExpandA_Keccak_FIPS204_KAT_Test is Test {
 
     function test_expandA_keccak_fips_kat_row0_col0() public {
         // 1) Читаємо JSON із KAT
-        string memory path = string(abi.encodePacked(vm.projectRoot(), "/test_vectors/expandA_keccak_fips_kat.json"));
+        string memory path = string(
+            abi.encodePacked(vm.projectRoot(), "/test_vectors/expandA_keccak_fips_kat.json")
+        );
         string memory json = vm.readFile(path);
 
         // 2) Базові метадані
@@ -51,7 +55,8 @@ contract MLDSA_ExpandA_Keccak_FIPS204_KAT_Test is Test {
         }
 
         // 5) Обчислюємо A[row][col] через реальний Keccak/FIPS-204 ExpandA
-        int32[256] memory a = MLDSA65_ExpandA_KeccakFIPS204.expandA_poly(rho, uint8(row), uint8(col));
+        int32[256] memory a =
+            MLDSA65_ExpandA_KeccakFIPS204.expandA_poly(rho, uint8(row), uint8(col));
 
         // 6) Порівнюємо коефіцієнти
         for (uint256 i = 0; i < checkLen; ++i) {

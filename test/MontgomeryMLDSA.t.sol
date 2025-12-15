@@ -59,7 +59,11 @@ contract MontgomeryMLDSA_Gas_Test is Test {
     }
 
     // Базова реалізація: mulmod на кожному коефіцієнті
-    function _naivePolyMul(uint256[256] memory a, uint256[256] memory b) internal pure returns (uint256[256] memory c) {
+    function _naivePolyMul(uint256[256] memory a, uint256[256] memory b)
+        internal
+        pure
+        returns (uint256[256] memory c)
+    {
         unchecked {
             for (uint256 i = 0; i < 256; i++) {
                 c[i] = mulmod(a[i], b[i], Q);

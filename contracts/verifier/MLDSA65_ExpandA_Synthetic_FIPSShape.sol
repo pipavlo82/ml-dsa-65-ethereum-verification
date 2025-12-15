@@ -50,7 +50,11 @@ library MLDSA65_ExpandA_Synthetic_FIPSShape {
     ///      Щоб уникнути побудови fullA у пам’яті, безпосередньо
     ///      використовуємо відповідну формулу з переставленими row/col:
     ///        rowL = colL, colK = rowK.
-    function expandA_poly(bytes32 rho, uint8 row, uint8 col) internal pure returns (int32[256] memory a) {
+    function expandA_poly(bytes32 rho, uint8 row, uint8 col)
+        internal
+        pure
+        returns (int32[256] memory a)
+    {
         // Перевірка меж у «K×L»-семантиці викликів
         require(row < MLDSA65_PolyVec.K, "expandA_poly: row out of range");
         require(col < MLDSA65_PolyVec.L, "expandA_poly: col out of range");

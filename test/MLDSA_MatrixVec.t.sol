@@ -81,7 +81,9 @@ contract MLDSA_MatrixVec_Test is Test {
                 int64 expected = (2 * v1) % q;
                 if (expected < 0) expected += q;
 
-                assertEq(int256(v2), int256(expected), "matrix-vector multiply must be linear in scalar");
+                assertEq(
+                    int256(v2), int256(expected), "matrix-vector multiply must be linear in scalar"
+                );
             }
         }
     }

@@ -6,7 +6,11 @@ import "../contracts/verifier/MLDSA65_Verifier_v2.sol";
 
 /// @notice Harness to expose internal decode helpers from MLDSA65_Verifier_v2.
 contract MLDSA_FIPSPack_t1_Harness is MLDSA65_Verifier_v2 {
-    function exposedDecodePublicKey(bytes memory raw) external pure returns (DecodedPublicKey memory) {
+    function exposedDecodePublicKey(bytes memory raw)
+        external
+        pure
+        returns (DecodedPublicKey memory)
+    {
         PublicKey memory pk = PublicKey({raw: raw});
         return _decodePublicKey(pk);
     }
@@ -25,7 +29,11 @@ contract MLDSA_FIPSPack_t1_Test is Test {
     ///      t1 = ((b1 >> 2) | (b2 << 6)) & 0x3FF
     ///      t2 = ((b2 >> 4) | (b3 << 4)) & 0x3FF
     ///      t3 = ((b3 >> 6) | (b4 << 2)) & 0x3FF
-    function _pack4x10(uint16 t0, uint16 t1_, uint16 t2, uint16 t3) internal pure returns (bytes5 outBytes) {
+    function _pack4x10(uint16 t0, uint16 t1_, uint16 t2, uint16 t3)
+        internal
+        pure
+        returns (bytes5 outBytes)
+    {
         // Ensure inputs are 10-bit.
         require(t0 < 1024 && t1_ < 1024 && t2 < 1024 && t3 < 1024, "coeff out of range");
 
@@ -123,7 +131,11 @@ contract MLDSA_FIPSPack_t1_Test is Test {
             int32 expected = int32(uint32(coeffs[i]));
             int32 actual = dpk.t1.polys[0][i];
 
-            assertEq(int256(actual), int256(expected), string.concat("t1[0][", vm.toString(i), "] mismatch"));
+            assertEq(
+                int256(actual),
+                int256(expected),
+                string.concat("t1[0][", vm.toString(i), "] mismatch")
+            );
         }
     }
 }

@@ -14,8 +14,10 @@ contract MLDSA_MatrixVecGas_Test is Test {
 
     /// @notice Measure gas for w = A*z with c = 0 (no challenge term).
     function test_matrixvec_w_gas_no_challenge() public {
-        (MLDSA65_Verifier_v2.DecodedPublicKey memory dpk, MLDSA65_Verifier_v2.DecodedSignature memory dsig) =
-            verifier.buildSyntheticDecodedNoChallenge();
+        (
+            MLDSA65_Verifier_v2.DecodedPublicKey memory dpk,
+            MLDSA65_Verifier_v2.DecodedSignature memory dsig
+        ) = verifier.buildSyntheticDecodedNoChallenge();
 
         uint256 gasUsed = verifier.measureComputeW(dpk, dsig);
 
@@ -26,8 +28,10 @@ contract MLDSA_MatrixVecGas_Test is Test {
 
     /// @notice Measure gas for w = A*z - c*t1 with non-zero c (full synthetic path).
     function test_matrixvec_w_gas_with_challenge() public {
-        (MLDSA65_Verifier_v2.DecodedPublicKey memory dpk, MLDSA65_Verifier_v2.DecodedSignature memory dsig) =
-            verifier.buildSyntheticDecodedWithChallenge();
+        (
+            MLDSA65_Verifier_v2.DecodedPublicKey memory dpk,
+            MLDSA65_Verifier_v2.DecodedSignature memory dsig
+        ) = verifier.buildSyntheticDecodedWithChallenge();
 
         uint256 gasUsed = verifier.measureComputeW(dpk, dsig);
 

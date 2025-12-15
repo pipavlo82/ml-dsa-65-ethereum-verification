@@ -6,12 +6,20 @@ import "../contracts/verifier/MLDSA65_Verifier_v2.sol";
 
 /// @notice Harness для доступу до внутрішніх decode-хелперів.
 contract MLDSA_DecodeCoeffs_Harness is MLDSA65_Verifier_v2 {
-    function exposedDecodePublicKey(bytes memory raw) external pure returns (DecodedPublicKey memory) {
+    function exposedDecodePublicKey(bytes memory raw)
+        external
+        pure
+        returns (DecodedPublicKey memory)
+    {
         PublicKey memory pk = PublicKey({raw: raw});
         return _decodePublicKey(pk);
     }
 
-    function exposedDecodeSignature(bytes memory raw) external pure returns (DecodedSignature memory) {
+    function exposedDecodeSignature(bytes memory raw)
+        external
+        pure
+        returns (DecodedSignature memory)
+    {
         Signature memory sig = Signature({raw: raw});
         return _decodeSignature(sig);
     }
@@ -26,7 +34,11 @@ contract MLDSA_DecodeCoeffs_Test is Test {
 
     /// @dev Пакує 4×10-бітні коефіцієнти в 5 байт (FIPS-204 / Dilithium layout).
     ///      Такий самий layout, як у MLDSA_FIPSPack_t1.t.sol.
-    function _pack4x10(uint16 t0, uint16 t1, uint16 t2, uint16 t3) internal pure returns (bytes5 outBytes) {
+    function _pack4x10(uint16 t0, uint16 t1, uint16 t2, uint16 t3)
+        internal
+        pure
+        returns (bytes5 outBytes)
+    {
         require(t0 < 1024 && t1 < 1024 && t2 < 1024 && t3 < 1024, "coeff out of range");
 
         uint64 acc = uint64(t0) | (uint64(t1) << 10) | (uint64(t2) << 20) | (uint64(t3) << 30);

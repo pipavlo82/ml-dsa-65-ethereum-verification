@@ -2,7 +2,9 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
-import {MLDSA65_ExpandA_KeccakFIPS204} from "../contracts/verifier/MLDSA65_ExpandA_KeccakFIPS204.sol";
+import {
+    MLDSA65_ExpandA_KeccakFIPS204
+} from "../contracts/verifier/MLDSA65_ExpandA_KeccakFIPS204.sol";
 
 contract MLDSA_ExpandA_Keccak_FIPS204_KAT_Rho1 is Test {
     function test_expandA_keccak_fips_kat_rho1_row0_col0() public {
@@ -25,7 +27,8 @@ contract MLDSA_ExpandA_Keccak_FIPS204_KAT_Rho1 is Test {
         int32[256] memory expected = _parseCoeffs(coeffsStr);
 
         // 4) Реальне ExpandA Keccak/FIPS
-        int32[256] memory actual = MLDSA65_ExpandA_KeccakFIPS204.expandA_poly(rho, uint8(row), uint8(col));
+        int32[256] memory actual =
+            MLDSA65_ExpandA_KeccakFIPS204.expandA_poly(rho, uint8(row), uint8(col));
 
         // 5) Порівнюємо поелементно
         for (uint256 i = 0; i < 256; ++i) {
@@ -85,7 +88,12 @@ contract MLDSA_ExpandA_Keccak_FIPS204_KAT_Rho1 is Test {
         while (idx < len) {
             // Пропускаємо пробіли та коми
             while (
-                idx < len && (b[idx] == " " || b[idx] == "," || b[idx] == "\n" || b[idx] == "\r" || b[idx] == "\t")
+                idx < len
+                    && (b[idx] == " "
+                        || b[idx] == ","
+                        || b[idx] == "\n"
+                        || b[idx] == "\r"
+                        || b[idx] == "\t")
             ) {
                 idx++;
             }

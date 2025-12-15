@@ -8,10 +8,10 @@ import {NTT_MLDSA_Zetas} from "./NTT_MLDSA_Zetas.sol";
 library NTT_MLDSA_Real {
     uint256 internal constant Q = 8380417;
     uint256 internal constant N = 256;
-    
+
     // 256^{-1} mod Q = 8347681 (згенеровано скриптом)
     uint256 internal constant N_INV = 8347681;
-    
+
     // Barrett reduction constant: mu = floor(2^64 / Q)
     uint256 internal constant MU64 = 2201172575745;
 
@@ -39,11 +39,11 @@ library NTT_MLDSA_Real {
     /// @dev Barrett reduction for x < ~2^64 (in practice x ~< 2^50 for our use case)
     function _mulQ(uint256 a, uint256 b) internal pure returns (uint256 r) {
         unchecked {
-            uint256 x = a * b;                   // safe: a, b ~< 2Q
-            uint256 qhat = (x * MU64) >> 64;     // ~ floor(x / Q)
+            uint256 x = a * b; // safe: a, b ~< 2Q
+            uint256 qhat = (x * MU64) >> 64; // ~ floor(x / Q)
             r = x - qhat * Q;
             if (r >= Q) r -= Q;
-            if (r >= Q) r -= Q;                  // sometimes need 2 corrections
+            if (r >= Q) r -= Q; // sometimes need 2 corrections
         }
     }
 
@@ -135,13 +135,13 @@ library NTT_MLDSA_Real {
                     }
                 }
             }
-            
+
             // Multiply by N^{-1} mod Q
             for (uint256 i = 0; i < N; i++) {
                 uint256 ai = a[i];
                 a[i] = _mulQ(ai, N_INV);
             }
-            
+
             return a;
         }
     }

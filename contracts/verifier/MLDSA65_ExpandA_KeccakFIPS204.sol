@@ -16,7 +16,11 @@ library MLDSA65_ExpandA_KeccakFIPS204 {
 
     /// @notice ExpandA для одного полінома A[row][col] через rejection sampling.
     /// @dev Seed: "MLDSA65-ExpandA" || rho || uint16(row) || uint16(col) (домен-сепарація).
-    function expandA_poly(bytes32 rho, uint256 row, uint256 col) internal pure returns (int32[256] memory a) {
+    function expandA_poly(bytes32 rho, uint256 row, uint256 col)
+        internal
+        pure
+        returns (int32[256] memory a)
+    {
         // ВАЖЛИВО: row < K (6), col < L (5)
         require(row < K && col < L, "ExpandA: idx");
 

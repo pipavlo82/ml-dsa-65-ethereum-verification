@@ -693,6 +693,19 @@ contract MLDSA65_Verifier_v2 {
         MLDSA65_PolyVec._nttU_into(tmp_u, out_ntt_u);
     }
 
+    /// @notice Workspace version: reuse tmp_u_ws to avoid allocating tmp_u on every call.
+    function _expandA_poly_ntt_u_into_ws(
+        bytes32 rho,
+        uint8 row,
+        uint8 col,
+        uint256[256] memory tmp_u_ws,
+        uint256[256] memory out_ntt_u
+    ) internal pure {
+        int32[256] memory a = _expandA_poly(rho, row, col);
+        MLDSA65_PolyVec._toUQ_into(a, tmp_u_ws);
+        MLDSA65_PolyVec._nttU_into(tmp_u_ws, out_ntt_u);
+    }
+
     function _expandA_matrix_keccak(
         bytes32 rho
     )
@@ -784,18 +797,85 @@ contract MLDSA65_Verifier_v2 {
         for (uint256 k = 0; k < MLDSA65_PolyVec.K; ++k) {
             uint256[256] memory acc_ntt_u;
 
-            // Phase 8.x:
-            // A·z, and fuse -c·t1 only once in the last column (j == L-1)
-            for (uint256 j = 0; j < MLDSA65_PolyVec.L; ++j) {
-                uint256[256] memory a_ntt_u = _expandA_poly_ntt_u(rho, uint8(k), uint8(j));
+            // Phase 8.3:
+            // - reuse a_ntt_u buffer (no per-iteration allocation)
+            // - reuse tmp_u_ws workspace for _toUQ_into
+            // - remove branch inside hot loop by splitting last column
+            uint256[256] memory a_ntt_u;
+            uint256[256] memory tmp_u_ws;
 
-                if (hasChallenge && j == (MLDSA65_PolyVec.L - 1)) {
+            if (!hasChallenge) {
+                // Pure A·z
+                for (uint256 j = 0; j < MLDSA65_PolyVec.L; ++j) {
+                    _expandA_poly_ntt_u_into_ws(rho, uint8(k), uint8(j), tmp_u_ws, a_ntt_u);
+
+                    assembly {
+                        let q := 8380417
+                        let accPtr := acc_ntt_u
+                        let aPtr   := a_ntt_u
+                        let zPtr   := mload(add(z_ntt_u, mul(j, 0x20)))
+
+                        for { let off := 0 } lt(off, 0x2000) { off := add(off, 0x40) } {
+                            // lane0
+                            {
+                                let accv := mload(add(accPtr, off))
+                                let prod := mulmod(mload(add(aPtr, off)), mload(add(zPtr, off)), q)
+                                accv := addmod(accv, prod, q)
+                                mstore(add(accPtr, off), accv)
+                            }
+                            // lane1
+                            {
+                                let off1 := add(off, 0x20)
+                                let accv := mload(add(accPtr, off1))
+                                let prod := mulmod(mload(add(aPtr, off1)), mload(add(zPtr, off1)), q)
+                                accv := addmod(accv, prod, q)
+                                mstore(add(accPtr, off1), accv)
+                            }
+                        }
+                    }
+                }
+            } else {
+                // A·z for j=0..L-2
+                for (uint256 j = 0; j < (MLDSA65_PolyVec.L - 1); ++j) {
+                    _expandA_poly_ntt_u_into_ws(rho, uint8(k), uint8(j), tmp_u_ws, a_ntt_u);
+
+                    assembly {
+                        let q := 8380417
+                        let accPtr := acc_ntt_u
+                        let aPtr   := a_ntt_u
+                        let zPtr   := mload(add(z_ntt_u, mul(j, 0x20)))
+
+                        for { let off := 0 } lt(off, 0x2000) { off := add(off, 0x40) } {
+                            // lane0
+                            {
+                                let accv := mload(add(accPtr, off))
+                                let prod := mulmod(mload(add(aPtr, off)), mload(add(zPtr, off)), q)
+                                accv := addmod(accv, prod, q)
+                                mstore(add(accPtr, off), accv)
+                            }
+                            // lane1
+                            {
+                                let off1 := add(off, 0x20)
+                                let accv := mload(add(accPtr, off1))
+                                let prod := mulmod(mload(add(aPtr, off1)), mload(add(zPtr, off1)), q)
+                                accv := addmod(accv, prod, q)
+                                mstore(add(accPtr, off1), accv)
+                            }
+                        }
+                    }
+                }
+
+                // last column j = L-1: fuse -c·t1
+                {
+                    uint256 jLast = MLDSA65_PolyVec.L - 1;
+                    _expandA_poly_ntt_u_into_ws(rho, uint8(k), uint8(jLast), tmp_u_ws, a_ntt_u);
+
                     assembly {
                         let q := 8380417
 
                         let accPtr := acc_ntt_u
                         let aPtr   := a_ntt_u
-                        let zPtr   := mload(add(z_ntt_u, mul(j, 0x20)))
+                        let zPtr   := mload(add(z_ntt_u, mul(jLast, 0x20)))
                         let cPtr   := c_ntt_u
                         let t1Ptr  := mload(add(t1_ntt_u, mul(k, 0x20)))
 
@@ -823,32 +903,6 @@ contract MLDSA65_Verifier_v2 {
                                 let term := mulmod(mload(add(cPtr, off1)), mload(add(t1Ptr, off1)), q)
                                 accv := addmod(accv, sub(q, term), q)
 
-                                mstore(add(accPtr, off1), accv)
-                            }
-                        }
-                    }
-                } else {
-                    assembly {
-                        let q := 8380417
-
-                        let accPtr := acc_ntt_u
-                        let aPtr   := a_ntt_u
-                        let zPtr   := mload(add(z_ntt_u, mul(j, 0x20)))
-
-                        for { let off := 0 } lt(off, 0x2000) { off := add(off, 0x40) } {
-                            // lane0
-                            {
-                                let accv := mload(add(accPtr, off))
-                                let prod := mulmod(mload(add(aPtr, off)), mload(add(zPtr, off)), q)
-                                accv := addmod(accv, prod, q)
-                                mstore(add(accPtr, off), accv)
-                            }
-                            // lane1
-                            {
-                                let off1 := add(off, 0x20)
-                                let accv := mload(add(accPtr, off1))
-                                let prod := mulmod(mload(add(aPtr, off1)), mload(add(zPtr, off1)), q)
-                                accv := addmod(accv, prod, q)
                                 mstore(add(accPtr, off1), accv)
                             }
                         }

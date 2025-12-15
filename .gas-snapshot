@@ -20,7 +20,6 @@ MLDSA_Decode_Test:test_decode_signature_sets_c_from_last_32_bytes() (gas: 962014
 MLDSA_ERC7913Adapter_Test:test_adapter_with_fips_kat_vector0() (gas: 1885500)
 MLDSA_ExpandA_KAT_Structure_Test:test_expandA_kat_dummy_structure() (gas: 10926)
 MLDSA_ExpandA_KAT_Test:test_expandA_synth_matches_kat() (gas: 5018853)
-MLDSA_ExpandA_Keccak_FIPS204_Dump_Rho1:test_dump_rho1_row0_col0_first256() (gas: 302842)
 MLDSA_ExpandA_Keccak_FIPS204_KAT_Rho1:test_expandA_keccak_fips_kat_rho1_row0_col0() (gas: 1685587)
 MLDSA_ExpandA_Keccak_FIPS204_KAT_Test:test_expandA_keccak_fips_kat_row0_col0() (gas: 199039)
 MLDSA_ExpandA_Keccak_Smoke_Test:test_expandA_poly_coeffs_in_range() (gas: 259997)

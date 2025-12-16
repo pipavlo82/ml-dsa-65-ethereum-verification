@@ -23,6 +23,8 @@
 - [Overview](#overview)
 - [What’s implemented](#whats-implemented)
 - [Gas benchmarks](#gas-benchmarks)
+- [Standardization track](#standardization-track)
+- [Milestones (Phases)](#milestones-phases)
 - [Build & test](#build--test)
 - [Repo layout](#repo-layout)
 - [Design notes](#design-notes)
@@ -109,6 +111,55 @@ Key point: end-to-end verifier is dominated by `compute_w` (matrix-vector core).
 PreA demonstrates what the hot loop can look like when `A_ntt` is supplied efficiently.
 
 ---
+---
+
+## Standardization track
+
+This repository is structured as a **standardization-friendly** reference implementation for PQ signature verification on EVM:
+
+### 1) Common verifier surface (ERC-7913)
+We treat **ERC-7913** as the canonical wallet / AA / rollup-facing interface for PQ verifiers.
+
+- Spec: https://eips.ethereum.org/EIPS/eip-7913
+- Adapter(s): `contracts/verifier/MLDSA65_ERC7913Verifier.sol`, `contracts/verifier/MLDSA65_ERC7913BoundCommitA.sol`
+
+Goal: a verifier that can be plugged into tooling in the same way OpenZeppelin patterns are reused for classical primitives.
+
+### 2) Canonical calldata / ABI shapes (draft)
+We are converging on stable calldata layouts for:
+- `pubkey` / `signature` (FIPS-204 shape)
+- optional **precomputed** inputs (e.g., `packedA_ntt`) for performance paths
+
+This enables apples-to-apples gas comparisons across ML-DSA / Dilithium / Falcon, and makes it feasible to build shared tooling.
+
+### 3) Canonical JSON KAT schema (draft)
+Vectors are tracked in a **KAT-like JSON format** to support:
+- deterministic decoding tests
+- cross-implementation conformance checks
+- reproducible CI for correctness
+
+### 4) Reproducible benchmarking discipline
+Gas is measured via:
+- dedicated gas harness tests
+- `.gas-snapshot` snapshots
+- logged per-component breakdown (decode vs `compute_w`)
+
+This ensures changes are measurable and comparable over time.
+
+### 5) Alignment across PQ algorithms
+The long-term intent is a shared “PQ verifier kit” mindset:
+- same high-level interface (ERC-7913)
+- compatible vector formats and harnesses
+- comparable performance datasets (gas / calldata size / constraints)
+
+Related discussion (ecosystem context):
+- EIP-8051 (ML-DSA verification): https://ethereum-magicians.org/t/eip-8051-ml-dsa-verification/25857
+- EIP-8052 (Falcon precompile): https://eips.ethereum.org/EIPS/eip-8052
+- EthResearch thread: https://ethresear.ch/t/the-road-to-post-quantum-ethereum-transaction-is-paved-with-account-abstraction-aa/21783
+- OpenZeppelin interfaces docs (ERC-1271 / interface patterns): https://docs.openzeppelin.com/contracts/5.x/api/interfaces
+
+---
+
 ---
 
 ## Milestones (Phases)

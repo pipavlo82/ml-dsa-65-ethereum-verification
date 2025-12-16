@@ -420,6 +420,35 @@ contract MLDSA65_Verifier_v2 {
         return true;
     }
 
+    /// @notice Public bytes entrypoint: verify using packedA_ntt from calldata (no on-chain ExpandA).
+    /// @dev Returns ok_flag = 1 if checks pass, else 0.
+    /// packedA_ntt format: 30 polys (K*L), each 1024 bytes = 30720 bytes total.
+    function verifyWithPackedA(
+        bytes calldata pubkey,
+        bytes calldata sig,
+        bytes32 messageDigest,
+        bytes calldata packedANtt
+    ) external pure returns (uint256 ok_flag) {
+        if (pubkey.length < 32 || sig.length < 32) return 0;
+
+        // calldata -> memory copy once (decode helpers take bytes memory)
+        DecodedPublicKey memory dpk = _decodePublicKey(bytes(pubkey));
+        DecodedSignature memory dsig = _decodeSignature(bytes(sig));
+
+        if (dsig.c == bytes32(0)) return 0;
+        if (!_checkZNormGamma1Bound(dsig)) return 0;
+
+        // PreA path: uses packedA_ntt from calldata; avoids ExpandA+NTT(A) entirely
+        MLDSA65_PolyVec.PolyVecK memory w = _compute_w_preA(dpk, dsig, packedANtt);
+        w;
+
+        int32[256] memory cFromSig = MLDSA65_Challenge.poly_challenge(dsig.c);
+        int32[256] memory cFromMsg = MLDSA65_Challenge.poly_challenge(messageDigest);
+        if (!_polyEq(cFromSig, cFromMsg)) return 0;
+
+        return 1;
+    }
+
     // ---- decode overloads
 
     function _decodePublicKey(PublicKey memory pk) internal pure returns (DecodedPublicKey memory dpk) {
@@ -644,6 +673,8 @@ contract MLDSA65_Verifier_v2 {
             if (!hasChallenge) {
                 // Pure A·z
                 for (uint256 j = 0; j < MLDSA65_PolyVec.L; ++j) {
+                    // forge-lint: disable-next-line(unsafe-typecast)
+                    // safe: k < 6 and j < L (L=5), so both fit into uint8 (no truncation)
                     _expandA_poly_ntt_u_into_ws(rho, uint8(k), uint8(j), tmp_u_ws, a_ntt_u);
 
                     assembly ("memory-safe") {
@@ -675,6 +706,8 @@ contract MLDSA65_Verifier_v2 {
             } else {
                 // A·z for j=0..L-2
                 for (uint256 j = 0; j < (MLDSA65_PolyVec.L - 1); ++j) {
+                    // forge-lint: disable-next-line(unsafe-typecast)
+                    // safe: k < 6 and j < L (L=5), so both fit into uint8 (no truncation)
                     _expandA_poly_ntt_u_into_ws(rho, uint8(k), uint8(j), tmp_u_ws, a_ntt_u);
 
                     assembly ("memory-safe") {
@@ -706,6 +739,8 @@ contract MLDSA65_Verifier_v2 {
                 // last column j=L-1: fuse -c·t1
                 {
                     uint256 jLast = MLDSA65_PolyVec.L - 1;
+                    // forge-lint: disable-next-line(unsafe-typecast)
+                    // safe: k < 6 and jLast == (L-1) == 4, so both fit into uint8 (no truncation)
                     _expandA_poly_ntt_u_into_ws(rho, uint8(k), uint8(jLast), tmp_u_ws, a_ntt_u);
 
                     assembly ("memory-safe") {

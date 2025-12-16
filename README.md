@@ -109,6 +109,27 @@ Key point: end-to-end verifier is dominated by `compute_w` (matrix-vector core).
 PreA demonstrates what the hot loop can look like when `A_ntt` is supplied efficiently.
 
 ---
+---
+
+## Milestones (Phases)
+
+This repo has been developed as an iterative set of “phases” with reproducible tests + gas snapshots.
+
+| Phase | Branch / PR | What landed | Tests | Key gas numbers |
+|---:|---|---|---:|---|
+| Phase 5 | `feature/mldsa-ntt-opt` (baseline snapshot commit `be08d42`) | Baseline verify() POC with NTT assembly path; established `.gas-snapshot` discipline | green | `test_verify_gas_poc` ≈ **81,630,615** |
+| Phase 7 | `feature/mldsa-ntt-opt-phase7` → wired back into `feature/mldsa-ntt-opt` | `_compute_w` hot-loop optimization via inline assembly pointer-walk; fixed memory layout bug (row pointers) | 72/72 green (then higher as suite grew) | `test_verify_gas_poc` ≈ **80,000,775**; matrixvec cores logged |
+| Phase 10 | `feature/mldsa-ntt-opt-phase11-preA` (history includes Phase10 commits) | Switched critical NTT mul to native EVM `mulmod` (dropped Barrett attempt); large gas win | green | verify() POC dropped materially vs ~80M-era baseline |
+| Phase 11 (PreA) | `feature/mldsa-ntt-opt-phase11-preA` | Introduced **packed `A_ntt`** calldata format + **PreA compute_w microbench**; ExpandA gas micro harness; removed dump-only test | 85/85 (later 86/86) green | `test_verify_gas_poc` ≈ **68,901,612** (log ≈ 68,158,524) ; **PreA** `compute_w_fromPacked_A_ntt` ≈ **1,499,354** |
+| Phase 11 (CommitA) | `feature/mldsa-ntt-opt-phase11-preA` | Added **CommitA binding flow** to prevent matrix substitution when accepting precomputed A | green | binding overhead measured via micro benches |
+| Phase 12 (PackedA + ERC-7913) | `feature/mldsa-ntt-opt-phase12-erc7913-packedA` / PR #27 | Added `verifyWithPackedA(...)` fast-path (calldata `packedA_ntt`) in **ERC-7913 adapters**, tests + gas microbenches | **89/89** green | adapter microbench ~**71,796** gas (ok), ~**71,691** (mismatch); PreA microbench unchanged |
+
+Notes:
+- All gas numbers are sourced from Foundry logs and/or `.gas-snapshot` in the corresponding phase.
+- “verify() POC” is a research baseline that is still dominated by `compute_w = A·z − c·t1`; PreA isolates the hot loop to track achievable improvements when `A_ntt` is supplied efficiently.
+
+---
+
 
 ## Build & test
 

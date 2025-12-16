@@ -6,6 +6,7 @@ import "./MLDSA65_Verifier_v2.sol";
 
 /// @title ML-DSA-65 ERC-7913-compatible signature verifier
 /// @notice Адаптер, який обгортає MLDSA65_Verifier_v2 в стандарт ERC-7913.
+/// @dev verify(...) лишається 100% IERC7913-совісним. Додаткові entrypoints — це overload-и.
 contract MLDSA65_ERC7913Verifier is IERC7913SignatureVerifier {
     MLDSA65_Verifier_v2 public immutable verifier;
 
@@ -20,7 +21,7 @@ contract MLDSA65_ERC7913Verifier is IERC7913SignatureVerifier {
         override
         returns (bytes4)
     {
-        // Обгортаємо в наші внутрішні структури
+        // Обгортаємо raw bytes в наші внутрішні структури
         MLDSA65_Verifier_v2.PublicKey memory pk;
         pk.raw = key;
 
@@ -29,13 +30,47 @@ contract MLDSA65_ERC7913Verifier is IERC7913SignatureVerifier {
 
         bool ok = verifier.verify(pk, sig, hash);
 
-        if (!ok) {
-            // Стандарт ERC-7913 рекомендує або revert, або 0xffffffff
-            return 0xffffffff;
-        }
-
-        // Успішна перевірка → повертаємо свій selector
+        // ERC-7913 рекомендує або revert, або "failure code". У тебе вже прийнято 0xffffffff.
+        if (!ok) return bytes4(0xffffffff);
         return IERC7913SignatureVerifier.verify.selector;
     }
-}
 
+    /// @notice Verify using packedA_ntt from calldata (skips on-chain ExpandA).
+    /// @dev Повертає verify.selector при success, і 0xffffffff при failure.
+    function verifyWithPackedA(
+        bytes calldata key,
+        bytes32 hash,
+        bytes calldata signature,
+        bytes calldata packedA_ntt
+    ) external view returns (bytes4) {
+        bool ok = _callOkPackedA(hash, signature, key, packedA_ntt);
+        if (!ok) return bytes4(0xffffffff);
+        return IERC7913SignatureVerifier.verify.selector;
+    }
+
+    // -----------------------
+    // Internal helpers
+    // -----------------------
+
+    /// @dev Robust decode: працює і якщо verifier повертає bool, і якщо uint256 ok_flag.
+    function _callOkPackedA(
+        bytes32 hash,
+        bytes calldata signature,
+        bytes calldata key,
+        bytes calldata packedA_ntt
+    ) internal view returns (bool) {
+        (bool success, bytes memory ret) = address(verifier).staticcall(
+            abi.encodeWithSignature(
+                "verifyWithPackedA(bytes32,bytes,bytes,bytes)",
+                hash,
+                signature,
+                key,
+                packedA_ntt
+            )
+        );
+        if (!success || ret.length < 32) return false;
+
+        uint256 v = abi.decode(ret, (uint256));
+        return v == 1;
+    }
+}

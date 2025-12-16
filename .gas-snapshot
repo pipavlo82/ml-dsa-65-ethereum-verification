@@ -18,6 +18,8 @@ MLDSA_Decode_Test:test_decode_public_key_sets_rho_from_last_32_bytes() (gas: 448
 MLDSA_Decode_Test:test_decode_signature_accepts_any_length_without_revert() (gas: 937791)
 MLDSA_Decode_Test:test_decode_signature_sets_c_from_last_32_bytes() (gas: 962014)
 MLDSA_ERC7913Adapter_Test:test_adapter_with_fips_kat_vector0() (gas: 1885500)
+MLDSA_ERC7913_PackedA_GasMicro_Test:test_gas_adapter_verifyWithPackedA_mismatch() (gas: 71691)
+MLDSA_ERC7913_PackedA_GasMicro_Test:test_gas_adapter_verifyWithPackedA_ok() (gas: 71796)
 MLDSA_ERC7913_PackedA_Test:test_erc7913_adapter_verifyWithPackedA_ok_and_mismatch() (gas: 2436)
 MLDSA_ERC7913_PackedA_Test:test_erc7913_boundCommitA_verifyWithPackedA_ok_and_commit_mismatch() (gas: 2457)
 MLDSA_ExpandA_KAT_Structure_Test:test_expandA_kat_dummy_structure() (gas: 10926)

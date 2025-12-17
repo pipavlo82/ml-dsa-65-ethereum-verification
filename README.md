@@ -125,6 +125,10 @@ Current default normalization uses a *proxy* security metric:
 
 Note: vendor implementations remain under upstream licenses; this repo focuses on benchmark artifacts + provenance.
 
+### Gas-per-secure-bit benchmarking (external dataset repo)
+
+For normalized cross-scheme comparisons and interoperability vectors (AA/UserOp JSON schema), see:
+- https://github.com/pipavlo82/gas-per-secure-bit (datasets + runners + `spec/pqsig_userop_schema_v0.1.*`)
 
 ## Standardization track
 

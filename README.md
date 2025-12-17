@@ -111,22 +111,20 @@ Key point: end-to-end verifier is dominated by `compute_w` (matrix-vector core).
 PreA demonstrates what the hot loop can look like when `A_ntt` is supplied efficiently.
 
 ---
-## Gas-per-secure-bit benchmarking (external dataset repo)
+## Benchmark datasets (gas-per-secure-bit)
 
-This repository focuses on a **clean, FIPS-204-shaped ML-DSA-65 verifier in Solidity** (correctness, KATs, structure, and gas engineering).
-For cross-scheme comparisons and normalized reporting (e.g. *gas per cryptographic security bit*), see the external benchmark lab:
+This repo is primarily about a **clean, FIPS-204-shaped ML-DSA-65 verifier in Solidity** (correctness/KATs/structure + gas engineering).
 
-- **gas-per-secure-bit** (datasets + runners + summary scripts): https://github.com/pipavlo82/gas-per-secure-bit
+For **cross-scheme comparisons** and normalized reporting (e.g. *gas per effective security bit* under explicit assumptions), see:
+- https://github.com/pipavlo82/gas-per-secure-bit
 
-That repo maintains:
-- reproducible CSV/JSONL datasets (`data/results.csv`, `data/results.jsonl`)
-- vendor runners (ML-DSA-65 from this repo, ECDSA baselines, Falcon/QuantumAccount, etc.)
-- provenance tracking (`repo`, `commit`, `bench_name`, `chain_profile`)
-- normalized metric: `gas_per_secure_bit = gas_verify / lambda_eff` (extensible to VRF/min-entropy objects)
+It contains reproducible datasets (`data/results.csv` / `.jsonl`), runners, and provenance tracking (`repo`, `commit`, `bench_name`, `chain_profile`).
+Current default normalization uses a *proxy* security metric:
+`gas_per_secure_bit = gas_verify / lambda_eff`
+(where `lambda_eff` is recorded explicitly and may evolve into other metric types, including VRF/min-entropy under stated threat models).
 
-If you are looking for “how does ML-DSA-65 compare to Falcon/ECDSA on EVM/L1 (or L2 profiles)”, the benchmark repo is the canonical place.
+Note: vendor implementations remain under upstream licenses; this repo focuses on benchmark artifacts + provenance.
 
----
 
 ## Standardization track
 

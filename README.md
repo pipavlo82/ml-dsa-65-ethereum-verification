@@ -176,6 +176,7 @@ Related discussion (ecosystem context):
 - OpenZeppelin interfaces docs (ERC-1271 / interface patterns): https://docs.openzeppelin.com/contracts/5.x/api/interfaces
 
 ---
+**Surfaces / interfaces:** ERC-7913 adapters are the app-facing surface for ML-DSA-65 verification on EVM. EIP-7932 is a candidate protocol-facing surface (precompile-style); the goal is compatible ABI shapes and a shared JSON KAT schema across both surfaces.
 
 ---
 

@@ -1,3 +1,7 @@
 out/
 cache/
 resp.json
+
+# local foundry broadcasts
+broadcast/
+

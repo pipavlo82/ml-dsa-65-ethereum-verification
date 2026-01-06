@@ -21,8 +21,9 @@
 ## Table of Contents
 
 - [Overview](#overview)
-- [What’s implemented](#whats-implemented)
+- [What's implemented](#whats-implemented)
 - [Gas benchmarks](#gas-benchmarks)
+- [Benchmark datasets (gas-per-secure-bit)](#benchmark-datasets-gas-per-secure-bit)
 - [Standardization track](#standardization-track)
 - [Milestones (Phases)](#milestones-phases)
 - [Build & test](#build--test)
@@ -42,11 +43,7 @@ This repository implements an **ML-DSA-65 (FIPS-204 shape)** verification pipeli
 - A clean, auditable on-chain verifier baseline (research + standardization)
 - **ERC-7913-style** signature verifier adapters (wallets, AA, sequencers, rollups)
 - Reproducible **KAT-style** tests and deterministic **gas snapshots**
-- A realistic path to reduce the dominant cost:
-
-$$
-w = A \cdot z - c \cdot t1
-$$
+- A realistic path to reduce the dominant cost: **w = A · z − c · t1**
 
 **Standards / context**
 - **FIPS-204 (ML-DSA):** https://csrc.nist.gov/pubs/fips/204/final  
@@ -56,24 +53,19 @@ $$
 
 ---
 
-## What’s implemented
+## What's implemented
 
 ### Core crypto pipeline (FIPS-204 shape)
 
 - **Keccak/SHAKE backend (vendored)** + thin ML-DSA XOF wrapper
 - **NTT/INTT** for ML-DSA modulus/degree:
-  - \( q = 8,380,417 \)
-  - \( n = 256 \)
+  - q = 8,380,417
+  - n = 256
 - Poly / PolyVec / Hint scaffolding for ML-DSA-65 shape:
-  - \( k = 6 \) (t1)
-  - \( \ell = 5 \) (z, h)
+  - k = 6 (t1)
+  - ℓ = 5 (z, h)
 - FIPS-shaped decode for pubkey/signature (t1 / z / c) + KAT coverage
-- Matrix-vector core:
-
-$$
-w = A \cdot z - c \cdot t1
-$$
-
+- Matrix-vector core: **w = A · z − c · t1**
 - `MLDSA65_Verifier_v2` end-to-end **verify() POC** (decode + checks + compute_w)
 
 ### ERC-7913 integration
@@ -87,30 +79,42 @@ $$
 
 ### PreA track (performance isolation)
 
-PreA isolates the hot loop and shows what’s achievable when `A_ntt` is supplied efficiently:
+PreA isolates the hot loop and shows what's achievable when `A_ntt` is supplied efficiently:
 
 - calldata-friendly **packed `A_ntt`** format (loader)
 - **microbench:** compute `w` from packed `A_ntt` in isolation
 - Commitment binding helper (CommitA) to prevent swapping `A`
-### On-chain proof (local chain / reproducibility): PreA compute_w from packedA_ntt
 
-Besides log/snapshot-based measurements, we provide an **on-chain execution proof** for the PreA microbench,
-executed as **real transactions** on a local EVM chain (anvil, `chainId=31337`) using Foundry scripting.
+### PreA (packedA_ntt) — Convention + On-chain proof runner
 
-- Script: `vendors/ml-dsa-65-ethereum-verification/script/RunPreAOnChain.s.sol`
-- Deployed runner contract: `0xe7f1725e7734ce288f8367e1bb143e90bb3f0512` (anvil)
-- On-chain logs (deterministic):
-  - `gas_compute_w_fromPacked_A_ntt(rho0) = 1,499,354`
-  - `gas_compute_w_fromPacked_A_ntt(rho1) = 1,499,354`
-- Transactions (chainId=31337):
-  - `0xa885b619f5cb50bcc66ac38f9ea0d6b740f4e9bc1bbf1cfeb79114c5133335bd`
-  - `0x9afe3e848f620af88c5c478b3f8f5de3e46da7b17a27ddd3c20b2afe262a5905`
-  - `0x6e4b00c5012233a16e8fcbb14eb586d1735de17e8dfb8995c85dd8072d04672a`
-- Broadcast artifact:
-  - `vendors/ml-dsa-65-ethereum-verification/broadcast/RunPreAOnChain.s.sol/31337/run-latest.json`
+This repo defines the **PreA ABI convention** for supplying a precomputed `packedA_ntt` matrix (NTT-domain)
+to the verifier fast-path, and provides an on-chain runner to reproduce the ~1.50M gas `compute_w` cost.
 
-This is meant as a **wiring-consistency proof**: the same `packedA_ntt` construction used in the microbench
-is executed on-chain and produces identical rho0/rho1 measurements, with broadcast artifacts saved for audit.
+- **PreA (packedA_ntt) convention:** `docs/preA_packedA_ntt.md`
+- **On-chain proof runner:** `script/RunPreAOnChain.s.sol`
+
+#### Reproduce (local anvil)
+
+```bash
+# terminal 1
+anvil
+
+# terminal 2
+export RPC_URL=http://127.0.0.1:8545
+export PK=<YOUR_ANVIL_PRIVATE_KEY>
+
+forge script script/RunPreAOnChain.s.sol:RunPreAOnChain \
+  --rpc-url $RPC_URL \
+  --private-key $PK \
+  --broadcast -vv
+```
+
+#### Expected logs
+
+```
+gas_compute_w_fromPacked_A_ntt(rho0) 1499354
+gas_compute_w_fromPacked_A_ntt(rho1) 1499354
+```
 
 ---
 
@@ -130,6 +134,7 @@ Key point: end-to-end verifier is dominated by `compute_w` (matrix-vector core).
 PreA demonstrates what the hot loop can look like when `A_ntt` is supplied efficiently.
 
 ---
+
 ## Benchmark datasets (gas-per-secure-bit)
 
 This repo is primarily about a **clean, FIPS-204-shaped ML-DSA-65 verifier in Solidity** (correctness/KATs/structure + gas engineering).
@@ -138,16 +143,21 @@ For **cross-scheme comparisons** and normalized reporting (e.g. *gas per effecti
 - https://github.com/pipavlo82/gas-per-secure-bit
 
 It contains reproducible datasets (`data/results.csv` / `.jsonl`), runners, and provenance tracking (`repo`, `commit`, `bench_name`, `chain_profile`).
+
 Current default normalization uses a *proxy* security metric:
-`gas_per_secure_bit = gas_verify / lambda_eff`
+```
+gas_per_secure_bit = gas_verify / lambda_eff
+```
 (where `lambda_eff` is recorded explicitly and may evolve into other metric types, including VRF/min-entropy under stated threat models).
 
-Note: vendor implementations remain under upstream licenses; this repo focuses on benchmark artifacts + provenance.
+**Note:** vendor implementations remain under upstream licenses; this repo focuses on benchmark artifacts + provenance.
 
 ### Gas-per-secure-bit benchmarking (external dataset repo)
 
 For normalized cross-scheme comparisons and interoperability vectors (AA/UserOp JSON schema), see:
 - https://github.com/pipavlo82/gas-per-secure-bit (datasets + runners + `spec/pqsig_userop_schema_v0.1.*`)
+
+---
 
 ## Standardization track
 
@@ -183,7 +193,7 @@ Gas is measured via:
 This ensures changes are measurable and comparable over time.
 
 ### 5) Alignment across PQ algorithms
-The long-term intent is a shared “PQ verifier kit” mindset:
+The long-term intent is a shared "PQ verifier kit" mindset:
 - same high-level interface (ERC-7913)
 - compatible vector formats and harnesses
 - comparable performance datasets (gas / calldata size / constraints)
@@ -194,14 +204,13 @@ Related discussion (ecosystem context):
 - EthResearch thread: https://ethresear.ch/t/the-road-to-post-quantum-ethereum-transaction-is-paved-with-account-abstraction-aa/21783
 - OpenZeppelin interfaces docs (ERC-1271 / interface patterns): https://docs.openzeppelin.com/contracts/5.x/api/interfaces
 
----
 **Surfaces / interfaces:** ERC-7913 adapters are the app-facing surface for ML-DSA-65 verification on EVM. EIP-7932 is a candidate protocol-facing surface (precompile-style); the goal is compatible ABI shapes and a shared JSON KAT schema across both surfaces.
 
 ---
 
 ## Milestones (Phases)
 
-This repo has been developed as an iterative set of “phases” with reproducible tests + gas snapshots.
+This repo has been developed as an iterative set of "phases" with reproducible tests + gas snapshots.
 
 | Phase | Branch / PR | What landed | Tests | Key gas numbers |
 |---:|---|---|---:|---|
@@ -212,12 +221,11 @@ This repo has been developed as an iterative set of “phases” with reproducib
 | Phase 11 (CommitA) | `feature/mldsa-ntt-opt-phase11-preA` | Added **CommitA binding flow** to prevent matrix substitution when accepting precomputed A | green | binding overhead measured via micro benches |
 | Phase 12 (PackedA + ERC-7913) | `feature/mldsa-ntt-opt-phase12-erc7913-packedA` / PR #27 | Added `verifyWithPackedA(...)` fast-path (calldata `packedA_ntt`) in **ERC-7913 adapters**, tests + gas microbenches | **89/89** green | adapter microbench ~**71,796** gas (ok), ~**71,691** (mismatch); PreA microbench unchanged |
 
-Notes:
+**Notes:**
 - All gas numbers are sourced from Foundry logs and/or `.gas-snapshot` in the corresponding phase.
-- “verify() POC” is a research baseline that is still dominated by `compute_w = A·z − c·t1`; PreA isolates the hot loop to track achievable improvements when `A_ntt` is supplied efficiently.
+- "verify() POC" is a research baseline that is still dominated by `compute_w = A·z − c·t1`; PreA isolates the hot loop to track achievable improvements when `A_ntt` is supplied efficiently.
 
 ---
-
 
 ## Build & test
 
@@ -283,7 +291,7 @@ Typical structure (names may evolve, but intent stays stable):
 
 ### Why ERC-7913
 
-ERC-7913 generalizes signature verification beyond “address-only” signatures (EOA / ERC-1271), which is important for PQ keys.
+ERC-7913 generalizes signature verification beyond "address-only" signatures (EOA / ERC-1271), which is important for PQ keys.
 
 - Spec: https://eips.ethereum.org/EIPS/eip-7913
 
@@ -296,7 +304,7 @@ OpenZeppelin interface docs mention the expected magic values:
 ### Why CommitA binding (when using packed A)
 
 If we accept a precomputed `A_ntt` from calldata, we must prevent an attacker from swapping the matrix.
-CommitA binding is a lightweight “bind A to rho / context” mechanism for the fast-path.
+CommitA binding is a lightweight "bind A to rho / context" mechanism for the fast-path.
 
 ---
 
@@ -318,9 +326,9 @@ Short-term (next practical steps):
    - minimize memory roundtrips in NTT domain
 
 4. Standardization packaging
-   - ERC-7913 “drop-in verifier” shape
+   - ERC-7913 "drop-in verifier" shape
    - canonical JSON KAT pipeline
-   - reproducible benches + “gas per secure bit” methodology (separate workstream)
+   - reproducible benches + "gas per secure bit" methodology (separate workstream)
 
 ---
 

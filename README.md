@@ -216,6 +216,25 @@ Related discussion (ecosystem context):
 
 **Surfaces / interfaces:** ERC-7913 adapters are the app-facing surface for ML-DSA-65 verification on EVM. EIP-7932 is a candidate protocol-facing surface (precompile-style); the goal is compatible ABI shapes and a shared JSON KAT schema across both surfaces.
 
+### Surfaces: app-facing vs protocol-facing
+
+- **App-facing surface:** ERC-7913 adapters (wallet / AA / dapp integration boundary).
+- **Protocol-facing surface (candidate):** EIP-7932 ("Secondary Signature Algorithms") proposes a unified sigrecover-style precompile + registry for alternative signature algorithms.
+- **Goal:** keep **compatible ABI shapes** and a **shared KAT schema** across both surfaces, so the same vectors and calldata conventions remain comparable end-to-end.
+
+### Verification surfaces: app-facing vs protocol-facing
+
+This repo treats **ERC-7913 adapters** as the **app-facing verification surface** (wallets, apps, AA stacks).  
+In parallel, we track a **protocol-facing verification surface** (e.g., a future **precompile / enshrined verifier interface**) as a separate "sig::protocol" surface class.
+
+Design goal: keep **compatible ABI shapes** across these surfaces and reuse a **shared KAT schema** (same JSON vector structure and calldata conventions), so:
+- projects don't benchmark different conventions by accident, and
+- a future protocol-facing surface can be wired without re-inventing encoding, domains, or test vectors.
+
+Notes:
+- ERC-7913 provides an interoperable contract interface boundary for signature verification.
+- "EIP-7932" is currently just a template example in the EIPs repo and not an accepted protocol surface; we therefore refer to the protocol-facing surface generically as a *precompile / enshrined interface candidate* until a concrete EIP exists.
+
 ---
 
 ## Milestones (Phases)

@@ -116,6 +116,8 @@ gas_compute_w_fromPacked_A_ntt(rho0) 1499354
 gas_compute_w_fromPacked_A_ntt(rho1) 1499354
 ```
 
+**Terminology note:** "on-chain proof" here means an *EVM-executable reproducibility witness* (a broadcasted on-chain run that deterministically reproduces the benchmark gas and wiring), **not** a zero-knowledge proof system.
+
 ---
 
 ## Gas benchmarks
@@ -139,8 +141,16 @@ PreA demonstrates what the hot loop can look like when `A_ntt` is supplied effic
 
 This repo is primarily about a **clean, FIPS-204-shaped ML-DSA-65 verifier in Solidity** (correctness/KATs/structure + gas engineering).
 
-For **cross-scheme comparisons** and normalized reporting (e.g. *gas per effective security bit* under explicit assumptions), see:
+### Relationship to `gas-per-secure-bit`
+
+This repo provides the **on-chain verification artifacts** (Solidity implementation + gas harnesses).
+The normalized dataset and cross-scheme comparisons live in:
+
 - https://github.com/pipavlo82/gas-per-secure-bit
+
+That repository ingests pinned measurements from vendor repos like this one and records full provenance per row.
+
+For **cross-scheme comparisons** and normalized reporting (e.g. *gas per effective security bit* under explicit assumptions), see the gas-per-secure-bit repository above.
 
 It contains reproducible datasets (`data/results.csv` / `.jsonl`), runners, and provenance tracking (`repo`, `commit`, `bench_name`, `chain_profile`).
 

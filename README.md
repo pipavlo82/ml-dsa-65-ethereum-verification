@@ -244,6 +244,41 @@ matrix preparation from the verification boundary, enabling:
 
 ---
 
+### Drop-in & AA-style integration surfaces (PreA / packedA fast-path)
+
+This repo includes a thin "drop-in" wrapper and AA-facing examples that convert the verifier from a research artifact into an integration-ready module.
+
+#### ERC-7913 app-facing verifier (packedA fast-path)
+
+The ERC-7913 adapter exposes an overload:
+
+```solidity
+verifyWithPackedA(bytes signature, bytes32 hash, bytes key, bytes packedA_ntt) -> bytes4
+```
+
+This surface is intended for applications / AA wallets that can supply a precomputed `packedA_ntt` (PreA).
+
+**Local anvil demo:**
+
+```bash
+anvil --host 127.0.0.1 --port 8545
+export PK=0xac0974...f2ff80
+forge script script/RunERC7913PackedADemo.s.sol:RunERC7913PackedADemo \
+  --rpc-url http://127.0.0.1:8545 \
+  --private-key $PK \
+  --broadcast -vv
+```
+
+**Expected logs** (call-context gas; verification may currently return fail value while KAT correctness is still being finalized):
+- `gasUsed verifyWithPackedA (call context): 39772`
+- `gasUsed ERC1271 packedA (call context): 95392`
+
+#### ERC-1271 AA wallet wrapper (packedA)
+
+`contracts/adapters/MLDSA65_ERC1271Wallet_PackedA_Demo.sol` shows how to expose `isValidSignature(bytes32,bytes)` and delegate to the ERC-7913 verifier. The wallet expects `signature = abi.encode(pkBytes, sigBytes, packedA_ntt)`.
+
+---
+
 ## Milestones (Phases)
 
 This repo has been developed as an iterative set of "phases" with reproducible tests + gas snapshots.

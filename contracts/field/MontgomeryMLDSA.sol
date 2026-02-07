@@ -3,12 +3,12 @@ pragma solidity ^0.8.20;
 
 library MontgomeryMLDSA {
     // ML-DSA-65 modulus and Montgomery parameters (R = 2^32)
-    uint256 constant Q       = 8380417;          // modulus
-    uint256 constant Q_INV   = 4236238847;       // inverse of -Q modulo 2^32
-    uint256 constant R2      = 2365951;          // 2^64 mod Q (Montgomery square)
+    uint256 constant Q = 8380417; // modulus
+    uint256 constant Q_INV = 4236238847; // inverse of -Q modulo 2^32
+    uint256 constant R2 = 2365951; // 2^64 mod Q (Montgomery square)
 
-    uint256 constant MASK32  = 0xFFFFFFFF;
-    uint256 constant MASK64  = 0xFFFFFFFFFFFFFFFF;
+    uint256 constant MASK32 = 0xFFFFFFFF;
+    uint256 constant MASK64 = 0xFFFFFFFFFFFFFFFF;
 
     /// ----------------------------------------------------------------------
     /// Low-level Montgomery reduction (matches Dilithium / BoringSSL pattern)

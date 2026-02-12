@@ -59,10 +59,11 @@ contract MontgomeryMLDSA_Gas_Test is Test {
     }
 
     // Базова реалізація: mulmod на кожному коефіцієнті
-    function _naivePolyMul(
-        uint256[256] memory a,
-        uint256[256] memory b
-    ) internal pure returns (uint256[256] memory c) {
+    function _naivePolyMul(uint256[256] memory a, uint256[256] memory b)
+        internal
+        pure
+        returns (uint256[256] memory c)
+    {
         unchecked {
             for (uint256 i = 0; i < 256; i++) {
                 c[i] = mulmod(a[i], b[i], Q);
@@ -71,10 +72,11 @@ contract MontgomeryMLDSA_Gas_Test is Test {
     }
 
     // "Найгірший" Montgomery: з конверсіями для кожного коефіцієнта
-    function _montPolyMul_Full(
-        uint256[256] memory a,
-        uint256[256] memory b
-    ) internal pure returns (uint256[256] memory c) {
+    function _montPolyMul_Full(uint256[256] memory a, uint256[256] memory b)
+        internal
+        pure
+        returns (uint256[256] memory c)
+    {
         unchecked {
             for (uint256 i = 0; i < 256; i++) {
                 uint256 aM = MontgomeryMLDSA.toMontgomery(a[i]);
@@ -87,10 +89,11 @@ contract MontgomeryMLDSA_Gas_Test is Test {
 
     // Реалістичний сценарій NTT:
     // масиви вже в Montgomery-домені, множення лише montgomeryMul
-    function _montPolyMul_Preconverted(
-        uint256[256] memory aM,
-        uint256[256] memory bM
-    ) internal pure returns (uint256[256] memory c) {
+    function _montPolyMul_Preconverted(uint256[256] memory aM, uint256[256] memory bM)
+        internal
+        pure
+        returns (uint256[256] memory c)
+    {
         unchecked {
             for (uint256 i = 0; i < 256; i++) {
                 c[i] = MontgomeryMLDSA.montgomeryMul(aM[i], bM[i]);
@@ -120,12 +123,8 @@ contract MontgomeryMLDSA_Gas_Test is Test {
 
         // Одноразова конверсія, як при збереженні PK в storage
         for (uint256 i = 0; i < 256; i++) {
-            a[i] = MontgomeryMLDSA.toMontgomery(
-                uint256(keccak256(abi.encodePacked(i, "a"))) % Q
-            );
-            b[i] = MontgomeryMLDSA.toMontgomery(
-                uint256(keccak256(abi.encodePacked(i, "b"))) % Q
-            );
+            a[i] = MontgomeryMLDSA.toMontgomery(uint256(keccak256(abi.encodePacked(i, "a"))) % Q);
+            b[i] = MontgomeryMLDSA.toMontgomery(uint256(keccak256(abi.encodePacked(i, "b"))) % Q);
         }
 
         uint256[256] memory c;
@@ -157,9 +156,7 @@ contract MontgomeryMLDSA_Gas_Test is Test {
         for (uint256 i = 0; i < 256; i++) {
             uint256 aM = MontgomeryMLDSA.toMontgomery(a[i]);
             uint256 bM = MontgomeryMLDSA.toMontgomery(b[i]);
-            MontgomeryMLDSA.fromMontgomery(
-                MontgomeryMLDSA.montgomeryMul(aM, bM)
-            );
+            MontgomeryMLDSA.fromMontgomery(MontgomeryMLDSA.montgomeryMul(aM, bM));
         }
         uint256 gasMontFull = gas2 - gasleft();
 
@@ -184,13 +181,9 @@ contract MontgomeryMLDSA_Gas_Test is Test {
         console.log("3. Montgomery (pre-converted): ", gasMontPreconv, "gas");
         console.log("");
 
-        uint256 savings = gasNaive > gasMontPreconv
-            ? gasNaive - gasMontPreconv
-            : 0;
+        uint256 savings = gasNaive > gasMontPreconv ? gasNaive - gasMontPreconv : 0;
 
-        uint256 improvement = gasNaive > gasMontPreconv
-            ? (savings * 100) / gasNaive
-            : 0;
+        uint256 improvement = gasNaive > gasMontPreconv ? (savings * 100) / gasNaive : 0;
 
         console.log("Savings (preconv vs naive):    ", savings, "gas");
         console.log("Improvement:                   ", improvement, "%");

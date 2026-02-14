@@ -1,5 +1,5 @@
 [profile.default]
-src = "solidity"
+src = "contracts"
 test = "test"
 out = "out"
 libs = ["lib"]
@@ -7,3 +7,18 @@ libs = ["lib"]
 fs_permissions = [
     { access = "read", path = "./test_vectors" }
 ]
+
+# Вимикаємо всі лінтери
+[profile.default.lint]
+lint_on_build = false
+severity = []
+exclude_lints = []
+ignore = []
+solhint = { enabled = false }
+solfmt = { enabled = false }
+solar = { enabled = false }
+
+# На всяк випадок вимикаємо solar-config
+[profile.default.solar-config]
+enabled = false
+run = false

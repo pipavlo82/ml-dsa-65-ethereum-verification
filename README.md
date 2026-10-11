@@ -7,7 +7,7 @@
 [![Tests](https://img.shields.io/badge/Tests-89%2F89%20passing-brightgreen)]()
 [![Gas](https://img.shields.io/badge/Gas-verify__poc%20~68.9M-orange)]()
 [![Gas](https://img.shields.io/badge/Gas-PreA__packedA__compute__w%20~1.50M-orange)]()
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
 **Status:** Active development. End-to-end `verify()` **POC** + full gas harness. Foundry suite green.  
 **Latest gas (snapshot):** `test_verify_gas_poc = 68,901,612` gas (logged verify POC ≈ `68,158,524`).  
@@ -433,5 +433,6 @@ Short-term (next practical steps):
 
 ## License
 
-MIT (see `LICENSE`).  
+Apache-2.0 for Pavlo-authored material (see [LICENSE](LICENSE) and
+[LICENSING.md](LICENSING.md)). Existing MIT source grants remain applicable.
 Vendored Keccak/SHAKE files retain their original headers and license terms.
